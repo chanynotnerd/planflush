@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  messages    Message[]
+  specs       Spec[]
+  publishLogs NotionPublishLog[]
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  projectId  Int
+  role       String
+  senderName String?
+  content    String   @db.Text
+  createdAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Spec {
+  id          Int      @id @default(autoincrement())
+  projectId   Int
+  title       String
+  contentJson Json
+  status      String   @default("Draft")
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  publishLogs NotionPublishLog[]
+}
+
+model NotionPublishLog {
+  id            Int       @id @default(autoincrement())
+  projectId     Int
+  specId        Int
+  notionPageId  String?
+  notionUrl     String?
+  publishStatus String
+  errorMessage  String?   @db.Text
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  spec    Spec    @relation(fields: [specId], references: [id], onDelete: Cascade)
+}

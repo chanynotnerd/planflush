@@ -1,0 +1,383 @@
+@import "tailwindcss";
+
+:root {
+  --pf-bg: #f7f5f2;
+  --pf-surface: #ffffff;
+  --pf-surface-soft: #faf9f7;
+  --pf-text: #1a1a1a;
+  --pf-text-muted: #6f6a63;
+  --pf-border: #e8e4de;
+  --pf-border-strong: #d0ccc6;
+  --pf-accent: #c85a2a;
+  --pf-accent-dark: #b34d22;
+  --font-sans: var(--font-pretendard);
+  --font-brand-serif: var(--font-pretendard);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--pf-bg);
+  color: var(--pf-text);
+  font-family: var(--font-sans), sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.pf-page-shell {
+  min-height: 100vh;
+  background: var(--pf-bg);
+  color: var(--pf-text);
+}
+
+.pf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 2rem;
+  height: 60px;
+  border-bottom: 1px solid var(--pf-border);
+  background: rgba(247, 245, 242, 0.92);
+  backdrop-filter: blur(12px);
+  z-index: 100;
+}
+
+.pf-header-fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.pf-brand-link {
+  font-family: var(--font-brand-serif), sans-serif;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.pf-badge {
+  background: var(--pf-accent);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pf-header-links {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.pf-nav-link {
+  color: #555;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.pf-nav-link:hover {
+  color: var(--pf-text);
+}
+
+.pf-btn-primary,
+.pf-btn-outline,
+.pf-btn-accent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0.7rem 1.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.pf-btn-primary {
+  background: var(--pf-text);
+  color: var(--pf-bg);
+  border: none;
+}
+
+.pf-btn-primary:hover {
+  background: #333;
+  transform: translateY(-1px);
+}
+
+.pf-btn-outline {
+  background: transparent;
+  color: var(--pf-text);
+  border: 1.5px solid var(--pf-border-strong);
+}
+
+.pf-btn-outline:hover {
+  border-color: #999;
+  transform: translateY(-1px);
+}
+
+.pf-btn-accent {
+  background: var(--pf-accent);
+  color: #fff;
+  border: none;
+}
+
+.pf-btn-accent:hover {
+  background: var(--pf-accent-dark);
+  transform: translateY(-2px);
+}
+
+.pf-mini-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--pf-surface);
+  border: 1px solid var(--pf-border);
+  border-radius: 999px;
+  padding: 0.35rem 1rem;
+  font-size: 0.78rem;
+  color: #888;
+  font-weight: 500;
+}
+
+.pf-section-label {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  color: var(--pf-accent);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.pf-footer {
+  padding: 2rem;
+  border-top: 1px solid var(--pf-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pf-app-main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 104px 1.5rem 80px;
+}
+
+.pf-app-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.pf-card {
+  background: var(--pf-surface);
+  border: 1px solid var(--pf-border);
+  border-radius: 20px;
+}
+
+.pf-card-pad {
+  padding: 1.5rem;
+}
+
+.pf-page-title {
+  margin: 0;
+  font-family: var(--font-brand-serif), sans-serif;
+  font-size: clamp(2.1rem, 5vw, 3.2rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.pf-page-copy {
+  margin: 0;
+  color: var(--pf-text-muted);
+  font-size: 0.98rem;
+  line-height: 1.7;
+}
+
+.pf-input,
+.pf-textarea,
+.pf-select {
+  width: 100%;
+  border: 1px solid var(--pf-border);
+  border-radius: 16px;
+  padding: 0.85rem 1rem;
+  background: var(--pf-surface-soft);
+  color: #333;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.pf-input:focus,
+.pf-textarea:focus,
+.pf-select:focus {
+  border-color: var(--pf-accent);
+  background: #fffdfb;
+}
+
+.pf-textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.pf-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.78rem;
+  color: #6a655d;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.pf-status {
+  margin: 0;
+  color: var(--pf-text-muted);
+  font-size: 0.92rem;
+}
+
+.pf-error {
+  color: #a13b1f;
+}
+
+.pf-project-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.pf-project-link {
+  display: block;
+  padding: 1.25rem;
+  border: 1px solid var(--pf-border);
+  border-radius: 18px;
+  background: var(--pf-surface);
+  transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+}
+
+.pf-project-link:hover {
+  transform: translateY(-2px);
+  border-color: #d5cdc2;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.06);
+}
+
+.pf-project-meta {
+  font-size: 0.75rem;
+  color: #968f86;
+  font-weight: 600;
+}
+
+.pf-message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.pf-message-row {
+  display: flex;
+}
+
+.pf-message-row.user {
+  justify-content: flex-end;
+}
+
+.pf-message-row.assistant,
+.pf-message-row.system {
+  justify-content: flex-start;
+}
+
+.pf-message-bubble {
+  max-width: min(80%, 640px);
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  line-height: 1.6;
+  font-size: 0.88rem;
+  white-space: pre-wrap;
+}
+
+.pf-message-bubble.user {
+  background: #1a1a1a;
+  color: #f7f5f2;
+  border-radius: 18px 18px 6px 18px;
+}
+
+.pf-message-bubble.assistant {
+  background: #ffffff;
+  color: #333;
+  border: 1px solid var(--pf-border);
+  border-radius: 18px 18px 18px 6px;
+}
+
+.pf-message-bubble.system {
+  background: #fff4ed;
+  color: #7f4327;
+  border: 1px solid #f0cfbe;
+  border-radius: 18px 18px 18px 6px;
+}
+
+.pf-message-role {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 0.72;
+}
+
+.pf-form-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  .pf-header {
+    padding: 0.85rem 1rem;
+    height: auto;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .pf-header-links {
+    width: 100%;
+    gap: 0.9rem;
+  }
+
+  .pf-app-main {
+    padding-top: 132px;
+  }
+}
+
+@media (max-width: 640px) {
+  .pf-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .pf-message-bubble {
+    max-width: 100%;
+  }
+}

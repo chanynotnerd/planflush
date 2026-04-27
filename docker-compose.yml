@@ -1,0 +1,17 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: planflush-mysql
+    restart: always
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: planflush
+      MYSQL_USER: planflush_user
+      MYSQL_PASSWORD: planflush_password
+    volumes:
+      - planflush_mysql_data:/var/lib/mysql
+
+volumes:
+  planflush_mysql_data:
