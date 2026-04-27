@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PlanFlush
 
-## Getting Started
+PlanFlush는 프로젝트별 대화 내용을 기반으로 AI가 기획서 초안을 생성하고, 사용자가 수정·확정한 기획서를 Notion에 배포하는 기획 자동화 시스템입니다.
 
-First, run the development server:
+흩어진 채팅, 아이디어, 요구사항을 단순 요약하는 것이 아니라 실제 개발에 활용할 수 있는 구조화된 기획 문서로 정리하는 것을 목표로 합니다.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+사용자는 프로젝트를 생성하고, 해당 프로젝트 안에서 대화 내용을 입력한 뒤 AI 기획서 생성을 요청할 수 있습니다. 생성된 기획서는 섹션별로 검토·수정할 수 있으며, 최종 확정 후 `Flush to Notion` 기능을 통해 Notion 페이지로 배포됩니다.
+
+## 핵심 흐름
+
+```text
+프로젝트 생성
+→ 채팅 입력 및 저장
+→ AI 기획서 초안 생성
+→ 기획서 수정
+→ Flush to Notion
+→ Notion 페이지 생성
+→ 배포 로그 저장
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 주요 기능
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- 프로젝트별 채팅 관리
+- AI 기반 기획서 초안 생성
+- 섹션별 기획서 수정
+- Notion 페이지 배포
+- 배포 성공/실패 로그 저장
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 기술 스택
 
-## Learn More
+- Next.js
+- TypeScript
+- Tailwind CSS
+- MySQL
+- Prisma
+- OpenAI API
+- Notion API
+- Docker
 
-To learn more about Next.js, take a look at the following resources:
+## 개발 목표
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+PlanFlush의 목표는 서비스 기획자, PM, 운영 담당자가 프로젝트 대화 내용을 빠르게 정리하고, 개발 가능한 기획 문서로 전환할 수 있도록 돕는 것입니다.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MVP 단계에서는 로그인, 권한 관리, 협업 기능보다 프로젝트 생성, 채팅 저장, AI 기획서 생성, Notion 배포라는 핵심 흐름 구현에 집중합니다.
