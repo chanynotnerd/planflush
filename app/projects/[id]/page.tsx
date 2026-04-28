@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, use, useEffect, useState } from "react";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
+import styles from "./page.module.css";
 
 type Project = {
   id: number;
@@ -26,8 +27,6 @@ type PageProps = {
     id: string;
   }>;
 };
-
-const ROLE_OPTIONS: Message["role"][] = ["user", "assistant", "system"];
 
 const ROLE_LABELS: Record<Message["role"], string> = {
   user: "사용자",
@@ -57,6 +56,10 @@ function localizeApiMessage(message?: string) {
   }
 }
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleString("ko-KR");
+}
+
 export default function ProjectDetailPage({ params }: PageProps) {
   const { id } = use(params);
   const [project, setProject] = useState<Project | null>(null);
@@ -65,7 +68,6 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [submitError, setSubmitError] = useState("");
-  const [role, setRole] = useState<Message["role"]>("user");
   const [content, setContent] = useState("");
 
   useEffect(() => {
@@ -144,7 +146,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          role,
+          role: "user",
           content: trimmedContent,
         }),
       });
@@ -174,132 +176,203 @@ export default function ProjectDetailPage({ params }: PageProps) {
       <Header fixed />
 
       <main className="pf-app-main">
-        <div style={{ marginBottom: "1.25rem" }}>
-          <Link href="/projects" className="pf-nav-link">
-            ← 프로젝트 목록으로 돌아가기
-          </Link>
-        </div>
+        <div className={styles.page}>
+          <div className={styles.backRow}>
+            <Link href="/projects" className={styles.backLink}>
+              ← 프로젝트 목록으로 돌아가기
+            </Link>
+          </div>
 
-        {isLoading ? <p className="pf-status">불러오는 중입니다...</p> : null}
-        {!isLoading && error ? (
-          <p className="pf-status pf-error">{error}</p>
-        ) : null}
+          {isLoading ? <p className="pf-status">불러오는 중입니다...</p> : null}
+          {!isLoading && error ? <p className="pf-status pf-error">{error}</p> : null}
 
-        {!isLoading && !error && project ? (
-          <section
-            className="pf-app-grid"
-            style={{
-              gridTemplateColumns: "minmax(0, 0.92fr) minmax(320px, 0.68fr)",
-            }}
-          >
-            <div className="pf-card pf-card-pad">
-              <p className="pf-section-label">프로젝트 대화</p>
-              <h1
-                className="pf-page-title"
-                style={{
-                  fontWeight: 600,
-                  letterSpacing: "-0.03em",
-                }}
-              >
-                {project.name}
-              </h1>
-              <p className="pf-page-copy" style={{ marginTop: "1rem" }}>
-                {project.description || "프로젝트 설명이 아직 없습니다."}
-              </p>
+          {!isLoading && !error && project ? (
+            <>
+              <section className={`pf-card pf-card-pad ${styles.headerCard}`}>
+                <div className={styles.headerMain}>
+                  <div className={styles.headerText}>
+                    <p className="pf-section-label">프로젝트 상세</p>
+                    <h1 className={`pf-page-title ${styles.projectTitle}`}>
+                      {project.name}
+                    </h1>
+                    <p className={`pf-page-copy ${styles.projectDescription}`}>
+                      {project.description || "프로젝트 설명이 아직 없습니다."}
+                    </p>
+                  </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: "1rem",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  marginTop: "1.5rem",
-                  marginBottom: "1rem",
-                }}
-              >
-                <p className="pf-project-meta">프로젝트 ID #{project.id}</p>
-                <p className="pf-project-meta">
-                  최근 수정 {new Date(project.updatedAt).toLocaleString()}
-                </p>
-              </div>
+                  <div className={styles.headerActionArea}>
+                    <button className="pf-btn-outline" type="button" disabled>
+                      기획서 초안 생성
+                    </button>
+                  </div>
+                </div>
 
-              {messages.length === 0 ? (
-                <p className="pf-status">
-                  아직 저장된 메시지가 없습니다.
-                  <br />
-                  아래 입력창에서 프로젝트 관련 대화를 남겨보세요.
-                </p>
-              ) : (
-                <div className="pf-message-list">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`pf-message-row ${message.role}`}
-                    >
-                      <div className={`pf-message-bubble ${message.role}`}>
-                        <span className="pf-message-role">
-                          {ROLE_LABELS[message.role]}
-                        </span>
-                        {message.content}
+                <div className={styles.metaRow}>
+                  <span className={styles.metaPill}>Project #{project.id}</span>
+                  <span className={styles.metaPill}>
+                    최근 수정 {formatDate(project.updatedAt)}
+                  </span>
+                  <span className={styles.metaPill}>대화 {messages.length}건</span>
+                </div>
+              </section>
+
+              <section className={styles.contentGrid}>
+                <div className={styles.mainColumn}>
+                  <section className={`pf-card ${styles.timelineCard}`}>
+                    <div className={styles.timelineHeader}>
+                      <div>
+                        <h2 className={styles.timelineTitle}>프로젝트 대화</h2>
                       </div>
+                      <span className={styles.timelineSummary}>
+                        요구사항, 이슈, 결정사항을 시간순으로 정리합니다.
+                      </span>
                     </div>
-                  ))}
+
+                    <div className={styles.timelineWorkspace}>
+                      <div className={styles.timelineBody}>
+                        {messages.length === 0 ? (
+                          <div className={styles.emptyState}>
+                            <h3 className={styles.emptyTitle}>아직 대화가 없습니다.</h3>
+                            <p className="pf-status">
+                              아래 입력창에서 첫 대화를 남기면 이 화면이 프로젝트
+                              논의 타임라인으로 채워집니다.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className={styles.messageList}>
+                            {messages.map((message) => (
+                              <div
+                                key={message.id}
+                                className={`${styles.messageRow} ${
+                                  message.role === "user"
+                                    ? styles.messageRowUser
+                                    : message.role === "assistant"
+                                      ? styles.messageRowAssistant
+                                      : styles.messageRowSystem
+                                }`}
+                              >
+                                <article
+                                  className={`${styles.messageCard} ${
+                                    message.role === "user"
+                                      ? styles.userMessage
+                                      : message.role === "assistant"
+                                        ? styles.assistantMessage
+                                        : styles.systemMessage
+                                  }`}
+                                >
+                                  <div className={styles.messageMeta}>
+                                    <span className={styles.senderLabel}>
+                                      {ROLE_LABELS[message.role]}
+                                    </span>
+                                    <span className={styles.timeLabel}>
+                                      {formatDate(message.createdAt)}
+                                    </span>
+                                  </div>
+                                  <p className={styles.messageContent}>{message.content}</p>
+                                </article>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <form className={styles.composerForm} onSubmit={handleSubmit}>
+                        <div className={styles.composerInputWrap}>
+                          <textarea
+                            id="message-content"
+                            className={`pf-textarea ${styles.composerTextarea}`}
+                            value={content}
+                            onChange={(event) => setContent(event.target.value)}
+                            placeholder="회의 내용, 요구사항, 이슈, 결정사항을 입력하세요."
+                          />
+                          <button
+                            className={styles.sendButton}
+                            type="submit"
+                            disabled={isSubmitting}
+                            aria-label="메시지 전송"
+                          >
+                            <svg
+                              className={styles.sendIcon}
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                              aria-hidden="true"
+                            >
+                              <path
+                                d="M21 3 10 14"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                              <path
+                                d="m21 3-7 18-4-7-7-4 18-7Z"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+
+                        <div className={styles.composerFooter}>
+                          <p className={styles.composerHint}>
+                            입력한 내용은 사용자 대화로 저장됩니다.
+                          </p>
+                          <span className={styles.composerStatus}>
+                            {isSubmitting ? "저장 중..." : "버튼으로 전송"}
+                          </span>
+                        </div>
+
+                        {submitError ? (
+                          <p className="pf-status pf-error">{submitError}</p>
+                        ) : null}
+                      </form>
+                    </div>
+                  </section>
                 </div>
-              )}
-            </div>
 
-            <div className="pf-card pf-card-pad">
-              <p className="pf-section-label">메시지 저장</p>
-              <form className="pf-form-stack" onSubmit={handleSubmit}>
-                <div>
-                  <label htmlFor="message-role" className="pf-label">
-                    작성자 유형
-                  </label>
-                  <select
-                    id="message-role"
-                    className="pf-select"
-                    value={role}
-                    onChange={(event) =>
-                      setRole(event.target.value as Message["role"])
-                    }
-                  >
-                    {ROLE_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {ROLE_LABELS[option]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <aside className={styles.sideColumn}>
+                  <section className={`pf-card pf-card-pad ${styles.sideCard}`}>
+                    <p className="pf-section-label">프로젝트 정보</p>
+                    <h2 className={styles.sideTitle}>현재 상태</h2>
+                    <dl className={styles.infoList}>
+                      <div className={styles.infoItem}>
+                        <dt className={styles.infoLabel}>프로젝트 ID</dt>
+                        <dd className={styles.infoValue}>#{project.id}</dd>
+                      </div>
+                      <div className={styles.infoItem}>
+                        <dt className={styles.infoLabel}>최근 수정</dt>
+                        <dd className={styles.infoValue}>{formatDate(project.updatedAt)}</dd>
+                      </div>
+                      <div className={styles.infoItem}>
+                        <dt className={styles.infoLabel}>저장된 대화</dt>
+                        <dd className={styles.infoValue}>{messages.length}건</dd>
+                      </div>
+                    </dl>
+                  </section>
 
-                <div>
-                  <label htmlFor="message-content" className="pf-label">
-                    내용
-                  </label>
-                  <textarea
-                    id="message-content"
-                    className="pf-textarea"
-                    value={content}
-                    onChange={(event) => setContent(event.target.value)}
-                    placeholder="프로젝트 요구사항, 이슈, 결정사항 등을 입력하세요."
-                  />
-                </div>
-
-                {submitError ? (
-                  <p className="pf-status pf-error">{submitError}</p>
-                ) : null}
-
-                <button
-                  className="pf-btn-accent"
-                  type="submit"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "저장 중..." : "메시지 저장"}
-                </button>
-              </form>
-            </div>
-          </section>
-        ) : null}
+                  <section className={`pf-card pf-card-pad ${styles.sideCard}`}>
+                    <p className="pf-section-label">작성 가이드</p>
+                    <h2 className={styles.sideTitle}>논의 작성 팁</h2>
+                    <ul className={styles.tipList}>
+                      <li className={styles.tipItem}>
+                        요구사항과 제외 범위를 함께 적으면 이후 정리가 쉬워집니다.
+                      </li>
+                      <li className={styles.tipItem}>
+                        이슈의 원인과 결정사항을 한 메시지 안에 같이 남겨 주십시오.
+                      </li>
+                      <li className={styles.tipItem}>
+                        실무 메모처럼 길게 적어도 읽기 쉬운 타임라인 형태로 유지됩니다.
+                      </li>
+                    </ul>
+                  </section>
+                </aside>
+              </section>
+            </>
+          ) : null}
+        </div>
       </main>
 
       <Footer />
