@@ -384,6 +384,35 @@ UI expectations:
   - Flush to Notion
   - Open Notion
 
+### UI Design Reference
+
+For UI/UX redesign tasks, use this reference first:
+
+- `references/design/awesome-design-md/design-md/linear.app`
+
+Use it as inspiration for:
+
+- Project detail pages
+- Conversation / discussion timeline
+- Issue-like work history
+- Clean SaaS workspace layout
+
+Do not read or apply all design references at once unless explicitly requested.
+
+For PlanFlush, adapt the Linear-like structure to our product:
+
+- Project context should be compact.
+- Conversation timeline should be the main focus.
+- Composer/input area should be clear and comfortable.
+- The screen should feel like a professional planning workspace, not a casual messenger.
+
+For design-only tasks:
+
+- Do not change DB schema.
+- Do not change Prisma schema.
+- Do not change API contracts.
+- Do not change core business logic.
+
 ---
 
 ## 12. Code Quality Rules
