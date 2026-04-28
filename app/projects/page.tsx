@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
+import styles from "./page.module.css";
 
 type Project = {
   id: number;
@@ -26,6 +27,10 @@ function localizeApiMessage(message?: string) {
   }
 }
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleString("ko-KR");
+}
+
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,6 +39,12 @@ export default function ProjectsPage() {
   const [submitError, setSubmitError] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const sortedProjects = [...projects].sort(
+    (left, right) =>
+      new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+  );
+  const latestProject = sortedProjects[0] ?? null;
+  const latestProjectName = latestProject ? latestProject.name : "아직 없음";
 
   useEffect(() => {
     void loadProjects();
@@ -51,7 +62,10 @@ export default function ProjectsPage() {
       const data = (await response.json()) as Project[] | { message?: string };
 
       if (!response.ok) {
-        setError(localizeApiMessage("message" in data ? data.message : undefined) || "프로젝트 목록을 불러오지 못했습니다.");
+        setError(
+          localizeApiMessage("message" in data ? data.message : undefined) ||
+            "프로젝트 목록을 불러오지 못했습니다.",
+        );
         return;
       }
 
@@ -115,135 +129,207 @@ export default function ProjectsPage() {
       <Header fixed />
 
       <main className="pf-app-main">
-        <section
-          style={{
-            display: "grid",
-            gap: "1.5rem",
-            gridTemplateColumns: "minmax(0, 1.05fr) minmax(0, 0.95fr)",
-          }}
-        >
-          <div className="pf-card pf-card-pad">
-            <p className="pf-section-label">프로젝트 대시보드</p>
-            <h1
-              className="pf-page-title"
-              style={{
-                fontSize: "clamp(2.3rem, 3.6vw, 2.85rem)",
-                lineHeight: 1.16,
-                fontWeight: 600,
-              }}
-            >
-              대화를 쌓고,
-              <br />
-              기획서로 바꿀 준비를 합니다.
-            </h1>
-            <p className="pf-page-copy" style={{ marginTop: "1rem", maxWidth: "46rem" }}>
-              프로젝트를 만들고, 각 프로젝트별 대화를 저장할 수 있습니다. 저장된 대화는 다음 단계에서 AI 기획서 생성의 원본 자료로 사용됩니다.
-            </p>
-          </div>
-
-          <div className="pf-card pf-card-pad">
-            <p className="pf-section-label">프로젝트 생성</p>
-            <form className="pf-form-stack" onSubmit={handleSubmit}>
-              <div>
-                <label htmlFor="project-name" className="pf-label">
-                  프로젝트명
-                </label>
-                <input
-                  id="project-name"
-                  className="pf-input"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="PlanFlush MVP"
-                />
+        <div className={styles.page}>
+          <section className={styles.topGrid}>
+            <article className={`pf-card pf-card-pad ${styles.dashboardCard}`}>
+              <div className={styles.cardHeader}>
+                <div>
+                  <p className="pf-section-label">프로젝트 대시보드</p>
+                  <h1 className={`pf-page-title ${styles.dashboardTitle}`}>
+                    <span className={styles.dashboardLine}>대화를 쌓고,</span>
+                    <span className={styles.dashboardLine}>
+                      기획서로 바꿀 준비를 합니다.
+                    </span>
+                  </h1>
+                </div>
               </div>
 
-              <div>
-                <label htmlFor="project-description" className="pf-label">
-                  설명
-                </label>
-                <textarea
-                  id="project-description"
-                  className="pf-textarea"
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  placeholder="첫 프로젝트 설명을 입력해 주십시오."
-                />
-              </div>
-
-              {submitError ? <p className="pf-status pf-error">{submitError}</p> : null}
-
-              <button className="pf-btn-accent" type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "생성 중..." : "프로젝트 생성"}
-              </button>
-            </form>
-          </div>
-        </section>
-
-        <section style={{ marginTop: "1.5rem" }} className="pf-card pf-card-pad">
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "1rem",
-              marginBottom: "1.25rem",
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              <p className="pf-section-label" style={{ marginBottom: "0.35rem" }}>
-                프로젝트 목록
+              <p className={`pf-page-copy ${styles.dashboardCopy}`}>
+                <span className={styles.dashboardCopyLine}>
+                  프로젝트별 대화와 실무 메모를 한곳에 모아두고,
+                </span>
+                <span className={styles.dashboardCopyLine}>
+                  흩어진 요구사항과 결정사항을 기획 흐름에 맞게 정리해
+                </span>
+                <span className={styles.dashboardCopyLine}>
+                  AI 기획서 초안으로 이어질 수 있는 기준 자료로 활용합니다.
+                </span>
               </p>
-              <p className="pf-page-copy">최근 활동 순으로 프로젝트를 확인할 수 있습니다.</p>
-            </div>
 
-            <button className="pf-btn-outline" type="button" onClick={() => void loadProjects()}>
-              새로고침
-            </button>
-          </div>
-
-          {isLoading ? <p className="pf-status">프로젝트 목록을 불러오는 중입니다...</p> : null}
-          {!isLoading && error ? <p className="pf-status pf-error">{error}</p> : null}
-          {!isLoading && !error && projects.length === 0 ? (
-            <p className="pf-status">아직 프로젝트가 없습니다. 첫 프로젝트를 생성해 주십시오.</p>
-          ) : null}
-
-          {!isLoading && !error && projects.length > 0 ? (
-            <div className="pf-project-list">
-              {projects.map((project) => (
-                <Link key={project.id} href={`/projects/${project.id}`} className="pf-project-link">
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: "1rem",
-                      alignItems: "flex-start",
-                      marginBottom: "0.6rem",
-                    }}
-                  >
-                    <h2
-                      style={{
-                        margin: 0,
-                        fontFamily: "var(--font-brand-serif)",
-                        fontWeight: 400,
-                        fontSize: "1.2rem",
-                      }}
-                    >
-                      {project.name}
-                    </h2>
-                    <span className="pf-project-meta">#{project.id}</span>
+              <div className={styles.metricGrid}>
+                <div className={styles.metricCard}>
+                  <span className={styles.metricIcon} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" className={styles.metricSvg}>
+                      <path
+                        d="M4.5 7.5a2 2 0 0 1 2-2h3l1.2 1.5h6.8a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2Z"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className={styles.metricLabel}>저장된 프로젝트</p>
+                    <strong className={styles.metricValue}>
+                      {projects.length}개
+                    </strong>
                   </div>
-                  <p className="pf-page-copy">
-                    {project.description || "프로젝트 설명이 아직 없습니다."}
-                  </p>
-                  <p className="pf-project-meta" style={{ marginTop: "0.85rem" }}>
-                    최근 수정 {new Date(project.updatedAt).toLocaleString()}
-                  </p>
-                </Link>
-              ))}
+                </div>
+                <div className={styles.metricCard}>
+                  <span className={styles.metricIcon} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" className={styles.metricSvg}>
+                      <path
+                        d="M7 12h10M7 16h6M8.5 5.5h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className={styles.metricLabel}>최근 활동</p>
+                    <strong className={styles.metricValue}>
+                      {latestProjectName}
+                    </strong>
+                  </div>
+                </div>
+                <div className={styles.metricCard}>
+                  <span className={styles.metricIcon} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" className={styles.metricSvg}>
+                      <path
+                        d="M8 6.5h8M8 11.5h8M8 16.5h5M6.5 4.5h11a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2Z"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className={styles.metricLabel}>노션 배포 완료</p>
+                    <strong className={styles.metricValue}>0건</strong>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <aside className={`pf-card pf-card-pad ${styles.createCard}`}>
+              <div className={styles.cardHeader}>
+                <div>
+                  <p className="pf-section-label">프로젝트 생성</p>
+                  <h2 className={styles.createTitle}>새 프로젝트 만들기</h2>
+                </div>
+              </div>
+
+              <form className={styles.createForm} onSubmit={handleSubmit}>
+                <div>
+                  <label htmlFor="project-name" className="pf-label">
+                    프로젝트명
+                  </label>
+                  <input
+                    id="project-name"
+                    className="pf-input"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="프로젝트명을 입력해 주세요."
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="project-description" className="pf-label">
+                    설명
+                  </label>
+                  <textarea
+                    id="project-description"
+                    className={`pf-textarea ${styles.createTextarea}`}
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value)}
+                    placeholder="프로젝트에 대한 간단한 설명을 입력해 주세요."
+                  />
+                </div>
+
+                {submitError ? (
+                  <p className="pf-status pf-error">{submitError}</p>
+                ) : null}
+
+                <button
+                  className={`pf-btn-accent ${styles.submitButton}`}
+                  type="submit"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "생성 중..." : "프로젝트 생성"}
+                </button>
+              </form>
+            </aside>
+          </section>
+
+          <section className={`pf-card pf-card-pad ${styles.listSection}`}>
+            <div className={styles.listHeader}>
+              <div>
+                <p className="pf-section-label">프로젝트 목록</p>
+                <h2 className={styles.listTitle}>최근 활동 프로젝트</h2>
+                <p className={`pf-page-copy ${styles.listCopy}`}>
+                  대화가 누적된 프로젝트를 최근 수정 기준으로 정리합니다.
+                </p>
+              </div>
+
+              <button
+                className="pf-btn-outline"
+                type="button"
+                onClick={() => void loadProjects()}
+              >
+                새로고침
+              </button>
             </div>
-          ) : null}
-        </section>
+
+            {isLoading ? (
+              <p className="pf-status">프로젝트 목록을 불러오는 중입니다...</p>
+            ) : null}
+            {!isLoading && error ? (
+              <p className="pf-status pf-error">{error}</p>
+            ) : null}
+            {!isLoading && !error && projects.length === 0 ? (
+              <div className={styles.emptyPanel}>
+                <p className="pf-status">
+                  아직 프로젝트가 없습니다. 첫 프로젝트를 생성해 주십시오.
+                </p>
+              </div>
+            ) : null}
+
+            {!isLoading && !error && projects.length > 0 ? (
+              <div className={styles.projectList}>
+                {sortedProjects.map((project) => (
+                  <Link
+                    key={project.id}
+                    href={`/projects/${project.id}`}
+                    className={styles.projectItem}
+                  >
+                    <div className={styles.projectMain}>
+                      <div className={styles.projectTitleRow}>
+                        <h3 className={styles.projectName}>{project.name}</h3>
+                      </div>
+                      <p
+                        className={`pf-page-copy ${styles.projectDescription}`}
+                      >
+                        {project.description ||
+                          "프로젝트 설명이 아직 없습니다."}
+                      </p>
+                      <p className={styles.projectMeta}>
+                        최근 수정 {formatDate(project.updatedAt)}
+                      </p>
+                    </div>
+                    <span className={styles.projectArrow}>›</span>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        </div>
       </main>
 
       <Footer />
