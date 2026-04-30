@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { FormEvent, use, useEffect, useState } from "react";
@@ -20,6 +20,44 @@ type Message = {
   role: "user" | "assistant" | "system";
   content: string;
   createdAt: string;
+};
+
+type PlanningSpecContent = {
+  title: string;
+  summary: string;
+  background: string;
+  problem: string[];
+  goal: string[];
+  asIs: string[];
+  toBe: string[];
+  requirements: string[];
+  userFlow: string[];
+  screenSpecification: string[];
+  policiesAndEdgeCases: string[];
+  dataAndApi: string[];
+  openQuestions: string[];
+  actionItems: string[];
+};
+
+type Spec = {
+  id: number;
+  projectId: number;
+  title: string;
+  contentJson: PlanningSpecContent;
+  status: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ChatMessageResponse = {
+  userMessage: Message;
+  assistantMessage: Message;
+};
+
+type ChatMessageErrorResponse = {
+  message?: string;
+  userMessage?: Message;
 };
 
 type PageProps = {
@@ -51,6 +89,14 @@ function localizeApiMessage(message?: string) {
       return "메시지 내용을 입력해 주십시오.";
     case "Failed to create message.":
       return "메시지를 저장하지 못했습니다.";
+    case "At least one project message is required to generate a spec.":
+      return "기획서를 생성하려면 프로젝트 대화가 최소 1개 필요합니다.";
+    case "OPENAI_API_KEY is not configured.":
+      return "OPENAI_API_KEY가 설정되어 있지 않습니다. .env에 값을 추가해 주세요.";
+    case "Failed to generate assistant reply.":
+      return "AI 답변을 생성하지 못했습니다. 사용자 메시지는 저장되었습니다.";
+    case "Failed to generate spec.":
+      return "기획서 초안을 생성하지 못했습니다.";
     default:
       return message ?? "";
   }
@@ -60,15 +106,31 @@ function formatDate(value: string) {
   return new Date(value).toLocaleString("ko-KR");
 }
 
+function sanitizeMessageContent(value: string) {
+  return value
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/^\s{0,3}[-*]\s+/gm, "- ");
+}
+
+function getSpecStatusLabel(status: string) {
+  return status === "AI Draft" ? "기획서 초안" : status;
+}
+
 export default function ProjectDetailPage({ params }: PageProps) {
   const { id } = use(params);
   const [project, setProject] = useState<Project | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingSpec, setIsGeneratingSpec] = useState(false);
   const [error, setError] = useState("");
   const [submitError, setSubmitError] = useState("");
+  const [generateError, setGenerateError] = useState("");
   const [content, setContent] = useState("");
+  const [generatedSpec, setGeneratedSpec] = useState<Spec | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -140,20 +202,27 @@ export default function ProjectDetailPage({ params }: PageProps) {
     setSubmitError("");
 
     try {
-      const response = await fetch(`/api/projects/${id}/messages`, {
+      const response = await fetch(`/api/projects/${id}/chat-reply`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          role: "user",
           content: trimmedContent,
         }),
       });
 
-      const data = (await response.json()) as Message | { message?: string };
+      const data = (await response.json()) as
+        | Message
+        | ChatMessageResponse
+        | ChatMessageErrorResponse;
 
-      if (!response.ok || !("id" in data)) {
+      if (!response.ok) {
+        if ("userMessage" in data && data.userMessage) {
+          setMessages((current) => [...current, data.userMessage as Message]);
+          setContent("");
+        }
+
         setSubmitError(
           "message" in data && data.message
             ? localizeApiMessage(data.message)
@@ -162,12 +231,49 @@ export default function ProjectDetailPage({ params }: PageProps) {
         return;
       }
 
-      setMessages((current) => [...current, data]);
+      if ("userMessage" in data && "assistantMessage" in data) {
+        setMessages((current) => [
+          ...current,
+          data.userMessage,
+          data.assistantMessage,
+        ]);
+      } else if ("id" in data) {
+        setMessages((current) => [...current, data]);
+      }
+
       setContent("");
     } catch {
       setSubmitError("메시지를 저장하지 못했습니다.");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleGenerateSpec() {
+    setIsGeneratingSpec(true);
+    setGenerateError("");
+
+    try {
+      const response = await fetch(`/api/projects/${id}/generate-spec`, {
+        method: "POST",
+      });
+
+      const data = (await response.json()) as Spec | { message?: string };
+
+      if (!response.ok || !("id" in data)) {
+        setGenerateError(
+          "message" in data && data.message
+            ? localizeApiMessage(data.message)
+            : "기획서 초안을 생성하지 못했습니다.",
+        );
+        return;
+      }
+
+      setGeneratedSpec(data);
+    } catch {
+      setGenerateError("기획서 초안을 생성하지 못했습니다.");
+    } finally {
+      setIsGeneratingSpec(false);
     }
   }
 
@@ -201,20 +307,83 @@ export default function ProjectDetailPage({ params }: PageProps) {
                   </div>
 
                   <div className={styles.headerActionArea}>
-                    <button className="pf-btn-outline" type="button" disabled>
-                      기획서 초안 생성
+                    <p className={styles.generateHint}>
+                      {generatedSpec
+                        ? "현재 대화 기준으로 초안을 다시 생성합니다."
+                        : "대화 기반 초안을 생성합니다."}
+                    </p>
+                    <button
+                      className="pf-btn-primary"
+                      type="button"
+                      onClick={() => void handleGenerateSpec()}
+                      disabled={isGeneratingSpec}
+                    >
+                      {isGeneratingSpec
+                        ? "기획서 생성 중..."
+                        : generatedSpec
+                          ? "기획서 초안 다시 생성"
+                          : "기획서 초안 생성"}
                     </button>
                   </div>
                 </div>
 
+                {generateError ? (
+                  <p className="pf-status pf-error">{generateError}</p>
+                ) : null}
+
                 <div className={styles.metaRow}>
-                  <span className={styles.metaPill}>Project #{project.id}</span>
+                  <span className={styles.metaPill}>프로젝트 #{project.id}</span>
                   <span className={styles.metaPill}>
                     최근 수정 {formatDate(project.updatedAt)}
                   </span>
                   <span className={styles.metaPill}>대화 {messages.length}건</span>
                 </div>
               </section>
+
+              {generatedSpec ? (
+                <section className={`pf-card pf-card-pad ${styles.specPreviewCard}`}>
+                  <div className={styles.specPreviewHeader}>
+                    <div>
+                      <p className="pf-section-label">기획서 초안</p>
+                      <h2 className={styles.specPreviewTitle}>{generatedSpec.title}</h2>
+                    </div>
+                    <span className={styles.specPreviewBadge}>
+                      v{generatedSpec.version} · {getSpecStatusLabel(generatedSpec.status)}
+                    </span>
+                  </div>
+
+                  <p className={styles.specPreviewSummary}>
+                    {generatedSpec.contentJson.summary || "요약 정보가 아직 비어 있습니다."}
+                  </p>
+
+                  <div className={styles.specPreviewGrid}>
+                    <div className={styles.specPreviewSection}>
+                      <h3 className={styles.specPreviewSectionTitle}>목표</h3>
+                      <ul className={styles.specPreviewList}>
+                        {generatedSpec.contentJson.goal.slice(0, 3).map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className={styles.specPreviewSection}>
+                      <h3 className={styles.specPreviewSectionTitle}>요구사항</h3>
+                      <ul className={styles.specPreviewList}>
+                        {generatedSpec.contentJson.requirements.slice(0, 3).map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className={styles.specPreviewSection}>
+                      <h3 className={styles.specPreviewSectionTitle}>확인 질문</h3>
+                      <ul className={styles.specPreviewList}>
+                        {generatedSpec.contentJson.openQuestions.slice(0, 3).map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </section>
+              ) : null}
 
               <section className={styles.contentGrid}>
                 <div className={styles.mainColumn}>
@@ -224,7 +393,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                         <h2 className={styles.timelineTitle}>프로젝트 대화</h2>
                       </div>
                       <span className={styles.timelineSummary}>
-                        요구사항, 이슈, 결정사항을 시간순으로 정리합니다.
+                        AI와 기획 내용을 정리하세요.
                       </span>
                     </div>
 
@@ -234,8 +403,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                           <div className={styles.emptyState}>
                             <h3 className={styles.emptyTitle}>아직 대화가 없습니다.</h3>
                             <p className="pf-status">
-                              아래 입력창에서 첫 대화를 남기면 이 화면이 프로젝트
-                              논의 타임라인으로 채워집니다.
+                              아래 입력창에서 첫 대화를 남기면 이 화면에 프로젝트 타임라인으로 채워집니다.
                             </p>
                           </div>
                         ) : (
@@ -268,7 +436,9 @@ export default function ProjectDetailPage({ params }: PageProps) {
                                       {formatDate(message.createdAt)}
                                     </span>
                                   </div>
-                                  <p className={styles.messageContent}>{message.content}</p>
+                                  <p className={styles.messageContent}>
+                                    {sanitizeMessageContent(message.content)}
+                                  </p>
                                 </article>
                               </div>
                             ))}
@@ -290,6 +460,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                             type="submit"
                             disabled={isSubmitting}
                             aria-label="메시지 전송"
+                            title="메시지 전송"
                           >
                             <svg
                               className={styles.sendIcon}
@@ -318,11 +489,13 @@ export default function ProjectDetailPage({ params }: PageProps) {
 
                         <div className={styles.composerFooter}>
                           <p className={styles.composerHint}>
-                            입력한 내용은 사용자 대화로 저장됩니다.
+                            전송하면 AI가 요구사항을 정리하고 다음 질문을 제안합니다.
                           </p>
-                          <span className={styles.composerStatus}>
-                            {isSubmitting ? "저장 중..." : "버튼으로 전송"}
-                          </span>
+                          {isSubmitting ? (
+                            <span className={styles.composerStatus}>
+                              AI 답변 생성 중...
+                            </span>
+                          ) : null}
                         </div>
 
                         {submitError ? (
@@ -355,7 +528,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
 
                   <section className={`pf-card pf-card-pad ${styles.sideCard}`}>
                     <p className="pf-section-label">작성 가이드</p>
-                    <h2 className={styles.sideTitle}>논의 작성 팁</h2>
+                    <h2 className={styles.sideTitle}>회의 작성 팁</h2>
                     <ul className={styles.tipList}>
                       <li className={styles.tipItem}>
                         요구사항과 제외 범위를 함께 적으면 이후 정리가 쉬워집니다.
@@ -364,7 +537,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                         이슈의 원인과 결정사항을 한 메시지 안에 같이 남겨 주십시오.
                       </li>
                       <li className={styles.tipItem}>
-                        실무 메모처럼 길게 적어도 읽기 쉬운 타임라인 형태로 유지됩니다.
+                        실무 메모처럼 길게 적어도 읽기 쉬운 대화 흐름으로 저장됩니다.
                       </li>
                     </ul>
                   </section>
