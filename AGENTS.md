@@ -12,11 +12,24 @@ This repository is for **PlanFlush**.
 
 PlanFlush is a chat-based AI planning document automation system.
 
-The user creates a project, writes project-specific chat messages, generates a structured planning document with AI, edits the generated spec section by section, and finally clicks **Flush to Notion** to publish the confirmed planning document to Notion.
+The user creates a project, discusses requirements with an AI assistant inside the project chat, saves the conversation, generates a structured planning document with AI, edits the generated spec section by section, and finally clicks **Flush to Notion** to publish the confirmed planning document to Notion.
 
-PlanFlush is not a simple todo app or generic summarizer.
+PlanFlush is not a simple todo app, generic summarizer, or one-shot document generator.
 
-It is a practical planning workflow tool for service planners, PMs, and operators who need to convert scattered conversations into development-ready planning documents.
+It is a practical planning workflow tool for service planners, PMs, and operators who need to convert scattered conversations, questions, decisions, and implementation details into development-ready planning documents.
+
+The core product concept is:
+
+```text
+Project conversation with AI
+→ requirement clarification
+→ planning agreement
+→ draft planning document generation
+→ user review/edit
+→ Notion publishing
+```
+
+The AI assistant should help the user clarify requirements before the final planning document is generated.
 
 ---
 
@@ -27,8 +40,12 @@ The MVP flow is:
 ```text
 Project creation
 → project-based chat input
-→ save messages
-→ generate structured planning spec with AI
+→ save user message
+→ generate AI assistant reply
+→ save assistant message
+→ repeat project conversation until requirements are clear
+→ user clicks "기획서 초안 생성"
+→ generate structured planning spec with AI from the full conversation
 → save AI draft
 → edit spec sections
 → save edited spec
@@ -37,6 +54,23 @@ Project creation
 → save publish logs
 → show Notion link
 ```
+
+Important product distinction:
+
+```text
+AI Chat Reply
+= AI helps the user clarify and organize requirements inside the project conversation.
+
+Generate Spec / 기획서 초안 생성
+= AI reads the full saved conversation and creates a structured planning document draft.
+
+Flush to Notion
+= User publishes the reviewed/confirmed planning document to Notion.
+```
+
+Do not merge these steps into one automatic flow.
+
+AI output must not be published to Notion automatically.
 
 ---
 
@@ -85,6 +119,8 @@ Expected environment variables:
 DATABASE_URL="mysql://USER:PASSWORD@localhost:3307/planflush"
 
 OPENAI_API_KEY=""
+OPENAI_MODEL="gpt-5.4-mini"
+
 NOTION_API_KEY=""
 NOTION_DATABASE_ID=""
 ```
@@ -164,6 +200,7 @@ Stores project-based chat messages.
 Used for:
 
 - Chat history
+- AI assistant conversation context
 - AI spec generation source material
 
 Message roles may include:
@@ -171,6 +208,12 @@ Message roles may include:
 - `user`
 - `assistant`
 - `system`
+
+Expected Phase 3 usage:
+
+- User messages are saved with role: `user`.
+- AI assistant replies are saved with role: `assistant`.
+- Generate Spec should use the full saved conversation, including both `user` and `assistant` messages.
 
 ### Spec
 
@@ -217,15 +260,32 @@ Implement the MVP in this order.
 - Message list API
 - Project chat UI
 - Message persistence by project
+- User messages are saved as `Message` rows with role: `user`
 
-### Phase 3: AI Spec Generation
+### Phase 3: AI-Assisted Planning and Spec Generation
 
-- Generate spec API
-- Read project messages
-- Send messages to OpenAI API
+Phase 3 has two parts.
+
+#### Phase 3-A: AI Chat Reply
+
+- User sends a project message
+- Save the user message
+- Send the latest project conversation context to OpenAI API from the server side
+- Generate an AI assistant reply focused on planning clarification
+- Save the AI assistant reply as a `Message` row with role: `assistant`
+- Show the assistant reply in the project chat timeline
+- Do not generate the final planning document in this step
+- Do not publish anything to Notion in this step
+
+#### Phase 3-B: Generate Spec
+
+- User explicitly clicks `기획서 초안 생성`
+- Read the full saved project conversation, including `user` and `assistant` messages
+- Send the conversation to OpenAI API from the server side
 - Receive structured JSON spec
-- Save result to `Spec`
-- Show generated draft
+- Save result to `Spec` as an AI draft
+- Show generated draft preview
+- Do not publish the draft to Notion automatically
 
 ### Phase 4: Spec Editing
 
@@ -262,7 +322,12 @@ Do not implement these unless explicitly requested.
 - Team permission management
 - Slack integration
 - Google Drive integration
+- Text file upload
+- PDF upload
 - PDF upload analysis
+- PDF to text extraction
+- File Search
+- RAG
 - vLLM integration
 - Existing Notion page update
 - Rich text editor
@@ -273,6 +338,14 @@ Do not implement these unless explicitly requested.
 - Production-grade auth
 
 Keep the MVP focused.
+
+Future file expansion order after MVP:
+
+```text
+txt upload
+→ PDF to txt local extraction
+→ PDF direct analysis / File Search / RAG review
+```
 
 ---
 
@@ -313,10 +386,24 @@ Preferred API structure:
 app/api/projects/route.ts
 app/api/projects/[id]/route.ts
 app/api/projects/[id]/messages/route.ts
+app/api/projects/[id]/chat-reply/route.ts
 app/api/projects/[id]/generate-spec/route.ts
 app/api/specs/[id]/route.ts
 app/api/specs/[id]/flush/route.ts
 app/api/projects/[id]/publish-logs/route.ts
+```
+
+Phase 3 API distinction:
+
+```text
+POST /api/projects/[id]/messages
+= Save a user message only, if used as a pure message persistence endpoint.
+
+POST /api/projects/[id]/chat-reply
+= Save the user message, call OpenAI, save the assistant reply, and return both messages.
+
+POST /api/projects/[id]/generate-spec
+= Generate a structured planning document draft from the full saved conversation.
 ```
 
 API rules:
@@ -329,6 +416,9 @@ API rules:
 - Keep response shapes simple and predictable.
 - Do not expose internal stack traces to the client.
 - Use clear error messages.
+- Do not call OpenAI from client components.
+- Do not call OpenAI on page load.
+- Keep external API logic inside server route handlers or server-side helper functions.
 
 Example error response:
 
@@ -379,10 +469,39 @@ UI expectations:
 - Keep buttons clearly named.
 - Use practical labels such as:
   - Create Project
-  - Generate Spec
-  - Save Spec
+  - Send
+  - AI 답변 생성 중...
+  - 기획서 초안 생성
+  - 기획서 저장
   - Flush to Notion
   - Open Notion
+
+For PlanFlush user-facing product language:
+
+```text
+Generate Spec
+→ 기획서 초안 생성
+
+AI Draft
+→ 기획서 초안
+
+Spec
+→ 기획서
+
+Flush to Notion
+→ Flush to Notion or Notion 배포
+```
+
+Internal API paths, model names, and code identifiers may remain in English.
+
+User-facing labels should clearly separate:
+
+```text
+AI chat
+→ draft generation
+→ draft editing
+→ Notion publishing
+```
 
 ### UI Design Reference
 
@@ -439,6 +558,8 @@ When writing code:
 - Avoid duplicated logic when simple helpers are enough.
 - Keep database access inside API routes or helper modules.
 - Keep external API logic isolated in service/helper files.
+- Keep prompt-building logic isolated when practical.
+- Keep OpenAI integration easy to extend later for txt/PDF sources, but do not implement those sources during MVP.
 
 ---
 
@@ -461,6 +582,7 @@ Use environment variables:
 ```env
 DATABASE_URL=""
 OPENAI_API_KEY=""
+OPENAI_MODEL=""
 NOTION_API_KEY=""
 NOTION_DATABASE_ID=""
 ```
@@ -507,17 +629,68 @@ The Notion page body should contain the planning document sections as blocks.
 
 ## 15. OpenAI Integration Rules
 
-AI should generate a structured planning document, not a loose summary.
+OpenAI is used for two separate Phase 3 behaviors.
+
+### 15.1 AI Chat Reply
+
+AI Chat Reply helps the user clarify and organize requirements inside the project conversation.
+
+Rules:
+
+- Use saved project messages as conversation context.
+- Save the user message first.
+- Call OpenAI only after the user explicitly sends a message.
+- Generate an assistant reply focused on planning clarification, requirement organization, missing questions, and next steps.
+- Save the assistant reply as a `Message` row with role: `assistant`.
+- Do not generate the final planning document in this step.
+- Do not publish anything to Notion in this step.
+- Do not invent details.
+- If information is missing, ask concise follow-up questions.
+- Keep replies practical for service planning, PM work, and development handoff.
+
+The assistant should help organize:
+
+- Background
+- Problem
+- Goal
+- AS-IS
+- TO-BE
+- Requirements
+- User flow
+- Screen notes
+- Policies and edge cases
+- Data/API points
+- Open questions
+- Action items
+
+### 15.2 Generate Spec
+
+Generate Spec creates a structured planning document draft from the full saved project conversation.
 
 Rules:
 
 - Use project messages as source material.
+- Include both `user` and `assistant` messages.
 - Generate JSON matching the planning document template.
 - Do not publish AI output automatically.
 - Save AI output as a draft first.
 - Let the user review and edit the draft.
 - Keep prompts deterministic and structured.
 - If data is insufficient, use `openQuestions` instead of inventing details.
+
+### 15.3 OpenAI Safety and Runtime Rules
+
+- Do not call OpenAI automatically on page load.
+- Do not call OpenAI from client components.
+- Only call OpenAI from server route handlers or server-side helper functions.
+- AI Chat Reply should only run when the user explicitly sends a message.
+- Generate Spec should only run when the user explicitly clicks `기획서 초안 생성`.
+- Do not retry OpenAI requests automatically.
+- Do not hardcode API keys.
+- Do not print secrets in logs.
+- Use `process.env.OPENAI_API_KEY` for the API key.
+- Use `process.env.OPENAI_MODEL` if available.
+- If `OPENAI_MODEL` is missing, use the existing fallback model.
 
 ---
 
@@ -575,6 +748,15 @@ For UI work, include:
 - Empty state
 - Loading state
 - Error state
+
+For OpenAI work, include:
+
+- Trigger condition
+- Server route path
+- Environment variables used
+- Fallback behavior
+- Failure behavior
+- Confirmation that no secrets are exposed
 
 ---
 
@@ -634,6 +816,24 @@ Invoke-RestMethod `
   -Method POST `
   -ContentType "application/json" `
   -Body '{"name":"PlanFlush MVP","description":"First test project"}'
+```
+
+AI Chat Reply API example:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://localhost:3000/api/projects/1/chat-reply" `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{"content":"로그인 화면에서 비밀번호 변경 플로우를 기획하고 싶습니다."}'
+```
+
+Generate Spec API example:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://localhost:3000/api/projects/1/generate-spec" `
+  -Method POST
 ```
 
 ---
@@ -715,6 +915,7 @@ After this works, continue with:
 Project detail
 → Message save/list
 → Chat UI
+→ AI Chat Reply
 → Generate Spec
 → Spec editing
 → Flush to Notion
