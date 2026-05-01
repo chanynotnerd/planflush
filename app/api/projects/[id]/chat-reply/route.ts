@@ -1,6 +1,8 @@
 import { generateProjectChatReply } from "@/lib/openai/generateChatReply";
 import { prisma } from "@/lib/prisma";
 
+const CHAT_REPLY_CONTEXT_MESSAGE_LIMIT = 30;
+
 type ChatReplyRouteContext = {
   params: Promise<{
     id: string;
@@ -103,19 +105,21 @@ export async function POST(
       );
     }
 
-    const conversation = await prisma.message.findMany({
+    const latestConversation = await prisma.message.findMany({
       where: {
         projectId,
       },
       orderBy: {
-        createdAt: "asc",
+        createdAt: "desc",
       },
+      take: CHAT_REPLY_CONTEXT_MESSAGE_LIMIT,
       select: {
         role: true,
         content: true,
         createdAt: true,
       },
     });
+    const conversation = latestConversation.reverse();
 
     let assistantContent: string;
 
