@@ -35,6 +35,9 @@ type PlanningSpecContent = {
   screenSpecification: string[];
   policiesAndEdgeCases: string[];
   dataAndApi: string[];
+  confirmedFacts: string[];
+  assumptions: string[];
+  acceptanceCriteria: string[];
   openQuestions: string[];
   actionItems: string[];
 };
@@ -48,6 +51,10 @@ type Spec = {
   version: number;
   createdAt: string;
   updatedAt: string;
+};
+
+type ProjectDetailResponse = Project & {
+  latestSpec: Spec | null;
 };
 
 type ChatMessageResponse = {
@@ -95,6 +102,10 @@ function localizeApiMessage(message?: string) {
       return "OPENAI_API_KEY가 설정되어 있지 않습니다. .env에 값을 추가해 주세요.";
     case "Failed to generate assistant reply.":
       return "AI 답변을 생성하지 못했습니다. 사용자 메시지는 저장되었습니다.";
+    case "AI returned invalid JSON.":
+      return "AI가 올바른 JSON을 반환하지 않았습니다. 다시 시도해 주세요.";
+    case "AI returned an invalid spec format.":
+      return "AI가 기획서 형식에 맞지 않는 응답을 반환했습니다. 다시 시도해 주세요.";
     case "Failed to generate spec.":
       return "기획서 초안을 생성하지 못했습니다.";
     default:
@@ -146,7 +157,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
         ]);
 
         const projectData = (await projectResponse.json()) as
-          | Project
+          | ProjectDetailResponse
           | { message?: string };
         const messagesData = (await messagesResponse.json()) as
           | Message[]
@@ -168,7 +179,16 @@ export default function ProjectDetailPage({ params }: PageProps) {
           return;
         }
 
-        setProject(projectData as Project);
+        const projectDetail = projectData as ProjectDetailResponse;
+
+        setProject({
+          id: projectDetail.id,
+          name: projectDetail.name,
+          description: projectDetail.description,
+          createdAt: projectDetail.createdAt,
+          updatedAt: projectDetail.updatedAt,
+        });
+        setGeneratedSpec(projectDetail.latestSpec ?? null);
         setMessages(Array.isArray(messagesData) ? messagesData : []);
       } catch {
         if (!cancelled) {
@@ -358,25 +378,31 @@ export default function ProjectDetailPage({ params }: PageProps) {
 
                   <div className={styles.specPreviewGrid}>
                     <div className={styles.specPreviewSection}>
-                      <h3 className={styles.specPreviewSectionTitle}>목표</h3>
+                      <h3 className={styles.specPreviewSectionTitle}>
+                        목표 {generatedSpec.contentJson.goal.length}개
+                      </h3>
                       <ul className={styles.specPreviewList}>
-                        {generatedSpec.contentJson.goal.slice(0, 3).map((item) => (
+                        {generatedSpec.contentJson.goal.map((item) => (
                           <li key={item}>{item}</li>
                         ))}
                       </ul>
                     </div>
                     <div className={styles.specPreviewSection}>
-                      <h3 className={styles.specPreviewSectionTitle}>요구사항</h3>
+                      <h3 className={styles.specPreviewSectionTitle}>
+                        요구사항 {generatedSpec.contentJson.requirements.length}개
+                      </h3>
                       <ul className={styles.specPreviewList}>
-                        {generatedSpec.contentJson.requirements.slice(0, 3).map((item) => (
+                        {generatedSpec.contentJson.requirements.map((item) => (
                           <li key={item}>{item}</li>
                         ))}
                       </ul>
                     </div>
                     <div className={styles.specPreviewSection}>
-                      <h3 className={styles.specPreviewSectionTitle}>확인 질문</h3>
+                      <h3 className={styles.specPreviewSectionTitle}>
+                        확인 질문 {generatedSpec.contentJson.openQuestions.length}개
+                      </h3>
                       <ul className={styles.specPreviewList}>
-                        {generatedSpec.contentJson.openQuestions.slice(0, 3).map((item) => (
+                        {generatedSpec.contentJson.openQuestions.map((item) => (
                           <li key={item}>{item}</li>
                         ))}
                       </ul>

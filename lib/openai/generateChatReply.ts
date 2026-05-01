@@ -1,8 +1,5 @@
-type SourceMessage = {
-  role: string;
-  content: string;
-  createdAt: Date;
-};
+import { buildChatReplyPrompt } from "@/lib/ai/prompts/chatReplyPrompt";
+import { SourceMessage } from "@/lib/ai/specSchema";
 
 type OpenAIResponseContentPart = {
   type?: string;
@@ -20,64 +17,6 @@ type OpenAIResponseBody = {
     message?: string;
   };
 };
-
-function buildConversationText(messages: SourceMessage[]) {
-  return messages
-    .map((message, index) => {
-      return [
-        `#${index + 1}`,
-        `role: ${message.role}`,
-        `createdAt: ${message.createdAt.toISOString()}`,
-        "content:",
-        message.content,
-      ].join("\n");
-    })
-    .join("\n\n---\n\n");
-}
-
-function buildPrompt({
-  projectName,
-  projectDescription,
-  messages,
-}: {
-  projectName: string;
-  projectDescription: string | null;
-  messages: SourceMessage[];
-}) {
-  return [
-    "You are PlanFlush's service planning assistant.",
-    "Reply inside the project chat. This is not the final planning document step.",
-    "Your job is to help the user clarify requirements through concise conversation before they explicitly click Generate Spec.",
-    "",
-    "Chat reply rules:",
-    "- Reply in Korean by default.",
-    "- Keep the default reply around 5 to 8 lines.",
-    "- Ask at most 3 follow-up questions.",
-    "- Do not repeat the full conversation summary every time.",
-    "- Do not generate a full planning document during chat.",
-    "- Do not use long section-heavy responses unless the user explicitly asks for a detailed summary.",
-    "- When the user provides information, briefly acknowledge it and ask only the next missing questions.",
-    "- If enough information seems available, include this sentence: 이 정도면 기획서 초안 생성이 가능합니다.",
-    "- Do not invent missing details. Ask questions instead of filling gaps.",
-    "- Keep the tone practical, concise, and natural for a service planning assistant.",
-    "- Avoid Markdown-heavy formatting. Plain numbered questions are enough.",
-    "",
-    "Preferred structure:",
-    "반영했습니다.",
-    "One short sentence summarizing what you understood.",
-    "",
-    "다음으로 확인할 것:",
-    "1. One concise question",
-    "2. One concise question",
-    "3. One concise question",
-    "",
-    `Project name: ${projectName}`,
-    `Project description: ${projectDescription || "None"}`,
-    "",
-    "Current saved conversation:",
-    buildConversationText(messages),
-  ].join("\n");
-}
 
 function getOutputText(responseBody: OpenAIResponseBody) {
   if (typeof responseBody.output_text === "string") {
@@ -112,13 +51,14 @@ export async function generateProjectChatReply({
     },
     body: JSON.stringify({
       model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      max_output_tokens: 800,
       input: [
         {
           role: "system",
           content: [
             {
               type: "input_text",
-              text: "You are a service planning assistant. Reply in Korean unless the user asks otherwise.",
+              text: "Reply in Korean unless the user asks otherwise.",
             },
           ],
         },
@@ -127,7 +67,11 @@ export async function generateProjectChatReply({
           content: [
             {
               type: "input_text",
-              text: buildPrompt({ projectName, projectDescription, messages }),
+              text: buildChatReplyPrompt({
+                projectName,
+                projectDescription,
+                messages,
+              }),
             },
           ],
         },

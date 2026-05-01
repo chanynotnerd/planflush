@@ -283,9 +283,38 @@ Phase 3 has two parts.
 - Read the full saved project conversation, including `user` and `assistant` messages
 - Send the conversation to OpenAI API from the server side
 - Receive structured JSON spec
+- Normalize and validate the generated JSON before saving
 - Save result to `Spec` as an AI draft
 - Show generated draft preview
 - Do not publish the draft to Notion automatically
+
+### Phase 3.5: AI PM Tuning
+
+Before Phase 4, stabilize AI output quality.
+
+Phase 3.5 focuses on making PlanFlush AI behave like a planning PM assistant, not a generic chatbot.
+
+Required work:
+
+- Separate prompt files for AI Chat Reply and Generate Spec.
+- Define AI behavior as a planning PM assistant.
+- Normalize generated spec JSON.
+- Validate generated spec JSON before saving.
+- Add confirmed facts, assumptions, and acceptance criteria to generated specs if compatible with the current UI.
+- Keep OpenAI calls server-side only.
+- Do not change the DB schema unless required.
+- Do not implement Phase 4 UI in this step.
+
+Suggested helper files:
+
+```text
+lib/ai/prompts/chatReplyPrompt.ts
+lib/ai/prompts/generateSpecPrompt.ts
+lib/ai/specNormalizer.ts
+lib/ai/specSchema.ts
+```
+
+Phase 3.5 must be completed before building the Phase 4 Spec Editing UI.
 
 ### Phase 4: Spec Editing
 
@@ -367,12 +396,29 @@ AI-generated specs should follow this structure.
   "screenSpecification": [],
   "policiesAndEdgeCases": [],
   "dataAndApi": [],
+  "confirmedFacts": [],
+  "assumptions": [],
+  "acceptanceCriteria": [],
   "openQuestions": [],
   "actionItems": []
 }
 ```
 
 Use this template consistently unless the user asks to change it.
+
+Field purpose:
+
+- `confirmedFacts`: Facts clearly stated or confirmed by the user.
+- `assumptions`: Reasonable inferences that are not fully confirmed.
+- `acceptanceCriteria`: Testable conditions for development and QA.
+- `openQuestions`: Missing, unclear, or conflicting points that require user confirmation.
+
+Do not invent missing information just to fill the template.
+
+If a field has no available information:
+
+- string fields should use `""`
+- array fields should use `[]`
 
 ---
 
@@ -660,6 +706,9 @@ The assistant should help organize:
 - Screen notes
 - Policies and edge cases
 - Data/API points
+- Confirmed facts
+- Assumptions
+- Acceptance criteria
 - Open questions
 - Action items
 
@@ -678,6 +727,21 @@ Rules:
 - Keep prompts deterministic and structured.
 - If data is insufficient, use `openQuestions` instead of inventing details.
 
+Generated specs must be normalized and validated before saving.
+
+Rules:
+
+- Required template keys must always exist.
+- Missing string fields should be normalized to `""`.
+- Missing array fields should be normalized to `[]`.
+- Invalid JSON must not be saved.
+- JSON parse errors should return a clear error response.
+- Do not expose internal stack traces.
+- Do not silently save partial or malformed AI output.
+- If source messages are insufficient, place missing items into `openQuestions`.
+- If something is inferred but not confirmed, place it into `assumptions`.
+- If something is clearly confirmed by the user, place it into `confirmedFacts`.
+
 ### 15.3 OpenAI Safety and Runtime Rules
 
 - Do not call OpenAI automatically on page load.
@@ -691,6 +755,83 @@ Rules:
 - Use `process.env.OPENAI_API_KEY` for the API key.
 - Use `process.env.OPENAI_MODEL` if available.
 - If `OPENAI_MODEL` is missing, use the existing fallback model.
+
+### 15.4 AI Planning PM Behavior Rules
+
+PlanFlush AI must behave like a planning PM assistant, not a generic chatbot.
+
+The AI should:
+
+- Clarify requirements before generating a final planning document.
+- Separate confirmed facts, assumptions, and open questions.
+- Convert vague user messages into actionable planning items.
+- Write requirements as specific, testable system behaviors.
+- Identify missing UI, API, data, policy, permission, and edge case details.
+- Avoid inventing APIs, DB fields, UI names, policies, or business rules.
+- If information is unclear, place it in `openQuestions`.
+- If something is inferred but not confirmed, place it in `assumptions`.
+- If something is clearly confirmed by the user, place it in `confirmedFacts`.
+- Do not repeat questions already answered in the conversation.
+- Ask no more than 3 high-value follow-up questions per AI chat reply.
+
+AI Chat Reply should usually follow this structure:
+
+```text
+Current understanding
+Confirmed so far
+Need to clarify
+Next questions
+```
+
+Keep AI chat replies concise and useful for planning.
+
+Requirement writing style:
+
+Good:
+
+```text
+- The system should validate the current password before changing the password.
+- The system should return `CURRENT_PASSWORD_MISMATCH` when the current password is incorrect.
+- The system should not save the new password if `confirmPassword` does not match `newPassword`.
+```
+
+Bad:
+
+```text
+- Improve password change.
+- Make password logic better.
+- Handle errors properly.
+```
+
+Acceptance criteria should use GIVEN / WHEN / THEN format when possible.
+
+Example:
+
+```text
+- GIVEN the user enters an incorrect current password
+  WHEN the user requests password change
+  THEN the system returns `CURRENT_PASSWORD_MISMATCH` and does not update the password
+```
+
+The AI should help organize planning information into:
+
+- Background
+- Problem
+- Goal
+- AS-IS
+- TO-BE
+- Requirements
+- User flow
+- Screen notes
+- Policies and edge cases
+- Data/API points
+- Confirmed facts
+- Assumptions
+- Acceptance criteria
+- Open questions
+- Action items
+
+The AI must not treat assumptions as confirmed requirements.
 
 ---
 
@@ -917,6 +1058,7 @@ Project detail
 → Chat UI
 → AI Chat Reply
 → Generate Spec
+→ AI PM Tuning
 → Spec editing
 → Flush to Notion
 ```

@@ -38,7 +38,24 @@ export async function GET(
       return Response.json({ message: "Project not found." }, { status: 404 });
     }
 
-    return Response.json(project);
+    const latestSpec = await prisma.spec.findFirst({
+      where: {
+        projectId,
+      },
+      orderBy: [
+        {
+          version: "desc",
+        },
+        {
+          createdAt: "desc",
+        },
+      ],
+    });
+
+    return Response.json({
+      ...project,
+      latestSpec,
+    });
   } catch (error) {
     console.error("Failed to fetch project.", error);
 

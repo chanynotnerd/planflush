@@ -131,6 +131,8 @@
 
 .specPreviewSection {
   min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   padding: 0.85rem;
   border: 1px solid var(--pf-border);
   border-radius: 12px;
@@ -147,11 +149,26 @@
 .specPreviewList {
   display: grid;
   gap: 0.35rem;
+  align-content: start;
+  max-height: 10.5rem;
+  overflow-y: auto;
   margin: 0;
-  padding-left: 1rem;
+  padding-left: 1.05rem;
+  padding-right: 0.3rem;
   color: var(--pf-text-muted);
   font-size: 0.8rem;
   line-height: 1.5;
+  list-style: disc outside;
+}
+
+.specPreviewList li {
+  padding-left: 0.1rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.specPreviewList li::marker {
+  color: #64748b;
 }
 
 .contentGrid {

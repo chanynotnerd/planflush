@@ -1,5 +1,10 @@
 import { Prisma } from "@prisma/client";
-import { generatePlanningSpecFromMessages } from "@/lib/openai/generateSpec";
+import { InvalidSpecFormatError } from "@/lib/ai/specNormalizer";
+import { PlanningSpecContent } from "@/lib/ai/specSchema";
+import {
+  generatePlanningSpecFromMessages,
+  InvalidJsonError,
+} from "@/lib/openai/generateSpec";
 import { prisma } from "@/lib/prisma";
 
 type GenerateSpecRouteContext = {
@@ -75,12 +80,37 @@ export async function POST(
       );
     }
 
-    const planningSpec = await generatePlanningSpecFromMessages({
-      apiKey,
-      projectName: project.name,
-      projectDescription: project.description,
-      messages,
-    });
+    let planningSpec: PlanningSpecContent;
+
+    try {
+      planningSpec = await generatePlanningSpecFromMessages({
+        apiKey,
+        projectName: project.name,
+        projectDescription: project.description,
+        messages,
+      });
+    } catch (error) {
+      if (error instanceof InvalidJsonError) {
+        return Response.json(
+          { message: "AI returned invalid JSON." },
+          { status: 500 },
+        );
+      }
+
+      if (error instanceof InvalidSpecFormatError) {
+        return Response.json(
+          { message: "AI returned an invalid spec format." },
+          { status: 500 },
+        );
+      }
+
+      console.error("Failed to generate planning spec from OpenAI.", error);
+
+      return Response.json(
+        { message: "Failed to generate spec." },
+        { status: 500 },
+      );
+    }
 
     const latestSpec = await prisma.spec.findFirst({
       where: {
