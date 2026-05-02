@@ -1,3 +1,7 @@
+.specMain {
+  max-width: 1160px;
+}
+
 .page {
   display: grid;
   gap: 0.85rem;
@@ -101,17 +105,134 @@
   font-weight: 700;
 }
 
+.editorWorkspace {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem;
+}
+
+.tocCard {
+  position: sticky;
+  top: 5.75rem;
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 0.9rem;
+  border-color: #dbe3ef;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.tocHeader {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.tocTitle {
+  margin: 0;
+  color: var(--pf-text);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.sectionToggle {
+  cursor: pointer;
+}
+
+.sectionToggle:hover {
+  background: #f8fafc;
+  color: var(--pf-primary);
+}
+
+.sectionToggle:focus-visible {
+  outline: 3px solid var(--pf-focus);
+  outline-offset: 2px;
+}
+
+.tocList {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.tocButton {
+  width: 100%;
+  border: none;
+  padding: 0.42rem 0.5rem;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.tocButton:hover,
+.tocButtonActive {
+  background: #f8fafc;
+  color: var(--pf-text);
+}
+
+.tocButtonActive {
+  background: var(--pf-primary-soft);
+  color: var(--pf-primary);
+}
+
+.editorPanel {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.categoryHeader {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1.2rem 1.35rem;
+  border-color: #dbe3ef;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.categoryTitle {
+  margin: 0;
+  color: var(--pf-text);
+  font-size: 1.12rem;
+  font-weight: 800;
+}
+
+.categoryDescription {
+  margin: 0;
+  color: var(--pf-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
 .sectionGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.85rem;
 }
 
 .sectionCard {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.7rem;
   align-content: start;
+  padding: 1.45rem 1.55rem;
+  border-color: #dbe3ef;
+  border-radius: 12px;
   background: #ffffff;
+  box-shadow: none;
+  scroll-margin-top: 6rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .sectionLabel {
@@ -120,9 +241,29 @@
   font-weight: 700;
 }
 
+.sectionToggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+}
+
+.chevronIcon {
+  width: 1rem;
+  height: 1rem;
+}
+
 .sectionTextarea {
-  min-height: 154px;
-  line-height: 1.65;
+  min-height: 160px;
+  line-height: 1.7;
+  width: 100%;
 }
 
 .stickySaveBar {
@@ -139,6 +280,7 @@
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12px);
   box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.06);
+  margin-left: calc(180px + 0.75rem);
 }
 
 .saveHint {
@@ -156,6 +298,18 @@
 
   .headerActions {
     justify-content: flex-start;
+  }
+
+  .editorWorkspace {
+    grid-template-columns: 1fr;
+  }
+
+  .tocCard {
+    position: static;
+  }
+
+  .stickySaveBar {
+    margin-left: 0;
   }
 
   .sectionGrid {
