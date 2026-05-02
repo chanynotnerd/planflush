@@ -592,6 +592,18 @@ If a field has no available information:
 - string fields should use `""`
 - array fields should use `[]`
 
+Generated planning document writing style:
+
+- Main document sections must use concise Korean document tone.
+- Use declarative endings such as `~한다`, `~해야 한다`, `~하지 않는다`, `~로 처리한다`, and `~로 표시한다`.
+- Do not mix polite conversational endings in main document sections, such as `~합니다`, `~인가요`, `~해주세요`, or `~드립니다`.
+- `requirements`, `userFlow`, `screenSpecification`, `policiesAndEdgeCases`, `dataAndApi`, `confirmedFacts`, `assumptions`, and `acceptanceCriteria` should be written as planning document statements.
+- `openQuestions` is the only section that may use question form.
+- `openQuestions` should use concise question endings such as `~인가?`, `~필요한가?`, `~확인해야 하는가?`, and `~따르는가?`.
+- `actionItems` should use action-oriented endings such as `~확인한다`, `~정의한다`, `~검토한다`, and `~정리한다`.
+- Do not copy casual or test-like messages into the spec, such as `테스트`, `되나?`, or `그냥 확인`.
+- If casual or test-like messages exist in the conversation, ignore them unless they contain meaningful requirements.
+
 ---
 
 ## 10. API Design Rules
@@ -1053,6 +1065,11 @@ Rules:
 - Let the user review and edit the draft.
 - Keep prompts deterministic and structured.
 - If data is insufficient, use `openQuestions` instead of inventing details.
+- Normalize the writing style before saving the generated spec.
+- The generated Spec JSON should not preserve mixed conversational endings.
+- Convert user conversation into professional Korean planning document tone.
+- Do not rewrite confirmed meaning incorrectly just to force style.
+- If a sentence is unclear, place it into `openQuestions` instead of forcing it into a requirement.
 
 Generated specs must be normalized and validated before saving.
 
@@ -1092,12 +1109,16 @@ The AI should:
 - Clarify requirements before generating a final planning document.
 - Separate confirmed facts, assumptions, and open questions.
 - Convert vague user messages into actionable planning items.
+- Write generated specs as planning PM documents, not as chat notes.
+- Use consistent declarative Korean document style in main generated spec sections.
 - Write requirements as specific, testable system behaviors.
 - Identify missing UI, API, data, policy, permission, and edge case details.
 - Avoid inventing APIs, DB fields, UI names, policies, or business rules.
 - If information is unclear, place it in `openQuestions`.
+- Isolate questions in `openQuestions`.
 - If something is inferred but not confirmed, place it in `assumptions`.
 - If something is clearly confirmed by the user, place it in `confirmedFacts`.
+- Do not include casual conversation, temporary testing messages, or meta chatter in the final spec.
 - Do not repeat questions already answered in the conversation.
 - Ask no more than 3 high-value follow-up questions per AI chat reply.
 
