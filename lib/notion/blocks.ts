@@ -15,6 +15,7 @@ type RenderState = {
 };
 
 const NOTION_RICH_TEXT_LIMIT = 2000;
+const NOISE_TEXTS = new Set(["테스트", "테스트.", "되나", "되나?", "되나? 테스트."]);
 
 function splitText(value: string) {
   const chunks: string[] = [];
@@ -28,6 +29,10 @@ function splitText(value: string) {
 
 function normalizeText(value: string) {
   return value.trim().replace(/\s+/g, " ");
+}
+
+function isNoiseText(value: string) {
+  return NOISE_TEXTS.has(value);
 }
 
 function richText(value: string): RichTextItemRequest[] {
@@ -64,16 +69,6 @@ function paragraph(text: string): BlockObjectRequest {
     object: "block",
     type: "paragraph",
     paragraph: {
-      rich_text: richText(text),
-    },
-  };
-}
-
-function quote(text: string): BlockObjectRequest {
-  return {
-    object: "block",
-    type: "quote",
-    quote: {
       rich_text: richText(text),
     },
   };
@@ -122,7 +117,7 @@ function getStringValue(value: string, state: RenderState) {
   const text = value.trim();
   const normalized = normalizeText(text);
 
-  if (!text || state.renderedTexts.has(normalized)) {
+  if (!text || isNoiseText(normalized) || state.renderedTexts.has(normalized)) {
     return null;
   }
 
@@ -137,7 +132,7 @@ function getArrayValues(values: string[], state: RenderState) {
     const text = value.trim();
     const normalized = normalizeText(text);
 
-    if (!text || state.renderedTexts.has(normalized)) {
+    if (!text || isNoiseText(normalized) || state.renderedTexts.has(normalized)) {
       continue;
     }
 
@@ -239,12 +234,6 @@ export function buildSpecNotionBlocks(
   const overviewBlocks = buildMajorSection("문서 개요", (sectionBlocks) => {
     addStringSubsection(sectionBlocks, "요약", "summary", spec.summary, state);
     addStringSubsection(sectionBlocks, "배경", "background", spec.background, state);
-
-    if (sectionBlocks.length > 0) {
-      sectionBlocks.unshift(
-        quote("PlanFlush에서 검토 및 저장된 기획서를 Notion 문서 형식으로 정리했습니다."),
-      );
-    }
   });
 
   blocks.push(...overviewBlocks);

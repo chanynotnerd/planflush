@@ -104,11 +104,27 @@ export async function POST(_request: Request, context: FlushRouteContext) {
     );
   }
 
+  const notionParentPageId = process.env.NOTION_PARENT_PAGE_ID;
+
+  if (!notionParentPageId) {
+    await createFailureLog({
+      projectId: spec.projectId,
+      specId: spec.id,
+      errorMessage: "NOTION_PARENT_PAGE_ID is not configured.",
+    });
+
+    return Response.json(
+      { message: "NOTION_PARENT_PAGE_ID is not configured." },
+      { status: 500 },
+    );
+  }
+
   try {
     const specContent = normalizePlanningSpec(spec.contentJson);
     const publishedPage = await publishSpecToNotion({
       apiKey: notionApiKey,
       databaseId: notionDatabaseId,
+      parentPageId: notionParentPageId,
       projectName: spec.project.name,
       specTitle: spec.title,
       specVersion: spec.version,
