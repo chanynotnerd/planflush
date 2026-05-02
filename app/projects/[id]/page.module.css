@@ -116,6 +116,15 @@
   font-weight: 700;
 }
 
+.specPreviewActions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
 .specPreviewSummary {
   margin: 0;
   color: var(--pf-text-muted);
@@ -528,6 +537,10 @@
 
   .specPreviewHeader {
     flex-direction: column;
+  }
+
+  .specPreviewActions {
+    justify-content: flex-start;
   }
 
   .sideColumn {
