@@ -127,7 +127,17 @@ function sanitizeMessageContent(value: string) {
 }
 
 function getSpecStatusLabel(status: string) {
-  return status === "AI Draft" ? "기획서 초안" : status;
+  switch (status) {
+    case "AI Draft":
+      return "기획서 초안";
+    case "Draft":
+    case "Edited Draft":
+      return "수정 초안";
+    case "Published":
+      return "배포 완료";
+    default:
+      return status;
+  }
 }
 
 export default function ProjectDetailPage({ params }: PageProps) {
@@ -364,12 +374,20 @@ export default function ProjectDetailPage({ params }: PageProps) {
                 <section className={`pf-card pf-card-pad ${styles.specPreviewCard}`}>
                   <div className={styles.specPreviewHeader}>
                     <div>
-                      <p className="pf-section-label">기획서 초안</p>
+                      <p className="pf-section-label">최신 기획서</p>
                       <h2 className={styles.specPreviewTitle}>{generatedSpec.title}</h2>
                     </div>
-                    <span className={styles.specPreviewBadge}>
-                      v{generatedSpec.version} · {getSpecStatusLabel(generatedSpec.status)}
-                    </span>
+                    <div className={styles.specPreviewActions}>
+                      <span className={styles.specPreviewBadge}>
+                        v{generatedSpec.version} · {getSpecStatusLabel(generatedSpec.status)}
+                      </span>
+                      <Link
+                        href={`/specs/${generatedSpec.id}`}
+                        className="pf-btn-outline"
+                      >
+                        기획서 편집
+                      </Link>
+                    </div>
                   </div>
 
                   <p className={styles.specPreviewSummary}>
@@ -399,7 +417,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                     </div>
                     <div className={styles.specPreviewSection}>
                       <h3 className={styles.specPreviewSectionTitle}>
-                        확인 질문 {generatedSpec.contentJson.openQuestions.length}개
+                        미확정 사항 {generatedSpec.contentJson.openQuestions.length}개
                       </h3>
                       <ul className={styles.specPreviewList}>
                         {generatedSpec.contentJson.openQuestions.map((item) => (

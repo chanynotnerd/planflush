@@ -1,0 +1,164 @@
+.page {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.backRow {
+  margin-bottom: 0.25rem;
+}
+
+.backLink {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.backLink:hover {
+  color: var(--pf-text);
+}
+
+.editorForm {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.headerCard {
+  display: grid;
+  gap: 0.9rem;
+  background: #ffffff;
+}
+
+.headerMain {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.pageTitle {
+  font-size: clamp(1.65rem, 3.4vw, 2.15rem);
+  font-weight: 700;
+  line-height: 1.12;
+}
+
+.headerDescription {
+  margin-top: 0.65rem;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.statusBadge,
+.metaPill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.3rem 0.68rem;
+  border: 1px solid var(--pf-border);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+
+.statusBadge {
+  border-color: #c7d2fe;
+  background: var(--pf-primary-soft);
+  color: var(--pf-primary);
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.successMessage {
+  margin: 0;
+  color: #15803d;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.emptyCard {
+  display: grid;
+  gap: 0.4rem;
+  border-style: dashed;
+  background: #f8fafc;
+}
+
+.emptyTitle {
+  margin: 0;
+  color: var(--pf-text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.sectionGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.sectionCard {
+  display: grid;
+  gap: 0.55rem;
+  align-content: start;
+  background: #ffffff;
+}
+
+.sectionLabel {
+  color: var(--pf-text);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.sectionTextarea {
+  min-height: 154px;
+  line-height: 1.65;
+}
+
+.stickySaveBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--pf-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.saveHint {
+  margin: 0;
+  color: var(--pf-text-muted);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 800px) {
+  .headerMain,
+  .stickySaveBar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .headerActions {
+    justify-content: flex-start;
+  }
+
+  .sectionGrid {
+    grid-template-columns: 1fr;
+  }
+}
