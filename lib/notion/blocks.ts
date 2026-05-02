@@ -9,24 +9,12 @@ type ArraySpecKey = Exclude<
   "title" | "summary" | "background"
 >;
 
-const NOTION_RICH_TEXT_LIMIT = 2000;
+type RenderState = {
+  renderedKeys: Set<keyof PlanningSpecContent>;
+  renderedTexts: Set<string>;
+};
 
-const SECTION_LABELS: { key: ArraySpecKey; label: string }[] = [
-  { key: "problem", label: "문제 정의" },
-  { key: "goal", label: "목표" },
-  { key: "asIs", label: "AS-IS" },
-  { key: "toBe", label: "TO-BE" },
-  { key: "requirements", label: "요구사항" },
-  { key: "userFlow", label: "사용자 흐름" },
-  { key: "screenSpecification", label: "화면 설계" },
-  { key: "policiesAndEdgeCases", label: "정책 및 예외 케이스" },
-  { key: "dataAndApi", label: "데이터 및 API" },
-  { key: "confirmedFacts", label: "확정된 내용" },
-  { key: "assumptions", label: "가정사항" },
-  { key: "acceptanceCriteria", label: "인수 기준" },
-  { key: "openQuestions", label: "미확정 질문" },
-  { key: "actionItems", label: "액션 아이템" },
-];
+const NOTION_RICH_TEXT_LIMIT = 2000;
 
 function splitText(value: string) {
   const chunks: string[] = [];
@@ -38,6 +26,10 @@ function splitText(value: string) {
   return chunks.length > 0 ? chunks : [""];
 }
 
+function normalizeText(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
 function richText(value: string): RichTextItemRequest[] {
   return splitText(value).map((content) => ({
     type: "text",
@@ -47,7 +39,17 @@ function richText(value: string): RichTextItemRequest[] {
   }));
 }
 
-function heading(text: string): BlockObjectRequest {
+function heading1(text: string): BlockObjectRequest {
+  return {
+    object: "block",
+    type: "heading_1",
+    heading_1: {
+      rich_text: richText(text),
+    },
+  };
+}
+
+function heading2(text: string): BlockObjectRequest {
   return {
     object: "block",
     type: "heading_2",
@@ -67,6 +69,16 @@ function paragraph(text: string): BlockObjectRequest {
   };
 }
 
+function quote(text: string): BlockObjectRequest {
+  return {
+    object: "block",
+    type: "quote",
+    quote: {
+      rich_text: richText(text),
+    },
+  };
+}
+
 function bullet(text: string): BlockObjectRequest {
   return {
     object: "block",
@@ -77,55 +89,251 @@ function bullet(text: string): BlockObjectRequest {
   };
 }
 
-function addStringSection(
+function numbered(text: string): BlockObjectRequest {
+  return {
+    object: "block",
+    type: "numbered_list_item",
+    numbered_list_item: {
+      rich_text: richText(text),
+    },
+  };
+}
+
+function toDo(text: string): BlockObjectRequest {
+  return {
+    object: "block",
+    type: "to_do",
+    to_do: {
+      rich_text: richText(text),
+      checked: false,
+    },
+  };
+}
+
+function divider(): BlockObjectRequest {
+  return {
+    object: "block",
+    type: "divider",
+    divider: {},
+  };
+}
+
+function getStringValue(value: string, state: RenderState) {
+  const text = value.trim();
+  const normalized = normalizeText(text);
+
+  if (!text || state.renderedTexts.has(normalized)) {
+    return null;
+  }
+
+  state.renderedTexts.add(normalized);
+  return text;
+}
+
+function getArrayValues(values: string[], state: RenderState) {
+  const items: string[] = [];
+
+  for (const value of values) {
+    const text = value.trim();
+    const normalized = normalizeText(text);
+
+    if (!text || state.renderedTexts.has(normalized)) {
+      continue;
+    }
+
+    state.renderedTexts.add(normalized);
+    items.push(text);
+  }
+
+  return items;
+}
+
+function getSectionValues(
+  spec: PlanningSpecContent,
+  key: ArraySpecKey,
+  state: RenderState,
+) {
+  if (state.renderedKeys.has(key)) {
+    return [];
+  }
+
+  state.renderedKeys.add(key);
+  return getArrayValues(spec[key], state);
+}
+
+function addStringSubsection(
   blocks: BlockObjectRequest[],
   label: string,
+  key: "summary" | "background",
   value: string,
+  state: RenderState,
 ) {
-  if (!value.trim()) {
+  if (state.renderedKeys.has(key)) {
     return;
   }
 
-  blocks.push(heading(label), paragraph(value.trim()));
+  state.renderedKeys.add(key);
+
+  const text = getStringValue(value, state);
+
+  if (!text) {
+    return;
+  }
+
+  blocks.push(heading2(label), paragraph(text));
 }
 
-function addArraySection(
+function addListSubsection(
   blocks: BlockObjectRequest[],
   label: string,
-  values: string[],
+  spec: PlanningSpecContent,
+  key: ArraySpecKey,
+  state: RenderState,
+  listType: "bullet" | "numbered" | "todo" = "bullet",
 ) {
-  const items = values.map((item) => item.trim()).filter(Boolean);
+  const items = getSectionValues(spec, key, state);
 
   if (items.length === 0) {
     return;
   }
 
-  blocks.push(heading(label), ...items.map((item) => bullet(item)));
+  const itemBlocks = items.map((item) => {
+    if (listType === "numbered") {
+      return numbered(item);
+    }
+
+    if (listType === "todo") {
+      return toDo(item);
+    }
+
+    return bullet(item);
+  });
+
+  blocks.push(heading2(label), ...itemBlocks);
+}
+
+function buildMajorSection(
+  title: string,
+  build: (sectionBlocks: BlockObjectRequest[]) => void,
+) {
+  const sectionBlocks: BlockObjectRequest[] = [];
+
+  build(sectionBlocks);
+
+  if (sectionBlocks.length === 0) {
+    return [];
+  }
+
+  return [divider(), heading1(title), ...sectionBlocks];
 }
 
 export function buildSpecNotionBlocks(
   spec: PlanningSpecContent,
 ): BlockObjectRequest[] {
   const blocks: BlockObjectRequest[] = [];
-  const renderedSections = new Set<keyof PlanningSpecContent>();
+  const state: RenderState = {
+    renderedKeys: new Set<keyof PlanningSpecContent>(),
+    renderedTexts: new Set<string>(),
+  };
 
-  addStringSection(blocks, "요약", spec.summary);
-  renderedSections.add("summary");
+  const overviewBlocks = buildMajorSection("문서 개요", (sectionBlocks) => {
+    addStringSubsection(sectionBlocks, "요약", "summary", spec.summary, state);
+    addStringSubsection(sectionBlocks, "배경", "background", spec.background, state);
 
-  addStringSection(blocks, "배경", spec.background);
-  renderedSections.add("background");
-
-  for (const section of SECTION_LABELS) {
-    if (renderedSections.has(section.key)) {
-      continue;
+    if (sectionBlocks.length > 0) {
+      sectionBlocks.unshift(
+        quote("PlanFlush에서 검토 및 저장된 기획서를 Notion 문서 형식으로 정리했습니다."),
+      );
     }
+  });
 
-    addArraySection(blocks, section.label, spec[section.key]);
-    renderedSections.add(section.key);
-  }
+  blocks.push(...overviewBlocks);
 
-  return blocks.length > 0
-    ? blocks
+  blocks.push(
+    ...buildMajorSection("1. 문제 정의 및 목표", (sectionBlocks) => {
+      addListSubsection(sectionBlocks, "문제 정의", spec, "problem", state);
+      addListSubsection(sectionBlocks, "목표", spec, "goal", state);
+      addListSubsection(sectionBlocks, "AS-IS", spec, "asIs", state);
+      addListSubsection(sectionBlocks, "TO-BE", spec, "toBe", state);
+    }),
+  );
+
+  blocks.push(
+    ...buildMajorSection("2. 요구사항", (sectionBlocks) => {
+      addListSubsection(sectionBlocks, "요구사항", spec, "requirements", state);
+    }),
+  );
+
+  blocks.push(
+    ...buildMajorSection("3. 사용자 흐름", (sectionBlocks) => {
+      addListSubsection(
+        sectionBlocks,
+        "사용자 흐름",
+        spec,
+        "userFlow",
+        state,
+        "numbered",
+      );
+    }),
+  );
+
+  blocks.push(
+    ...buildMajorSection("4. 화면 및 정책 설계", (sectionBlocks) => {
+      addListSubsection(sectionBlocks, "화면 설계", spec, "screenSpecification", state);
+      addListSubsection(
+        sectionBlocks,
+        "정책 및 예외 케이스",
+        spec,
+        "policiesAndEdgeCases",
+        state,
+      );
+    }),
+  );
+
+  blocks.push(
+    ...buildMajorSection("5. 데이터 및 API", (sectionBlocks) => {
+      addListSubsection(sectionBlocks, "데이터 및 API", spec, "dataAndApi", state);
+    }),
+  );
+
+  blocks.push(
+    ...buildMajorSection("6. 검증 기준", (sectionBlocks) => {
+      addListSubsection(
+        sectionBlocks,
+        "인수 기준",
+        spec,
+        "acceptanceCriteria",
+        state,
+      );
+    }),
+  );
+
+  blocks.push(
+    ...buildMajorSection("7. 확정/가정/미확정 사항", (sectionBlocks) => {
+      addListSubsection(sectionBlocks, "확정된 내용", spec, "confirmedFacts", state);
+      addListSubsection(sectionBlocks, "가정사항", spec, "assumptions", state);
+      addListSubsection(sectionBlocks, "미확정 질문", spec, "openQuestions", state);
+    }),
+  );
+
+  blocks.push(
+    ...buildMajorSection("8. 액션 아이템", (sectionBlocks) => {
+      addListSubsection(
+        sectionBlocks,
+        "액션 아이템",
+        spec,
+        "actionItems",
+        state,
+        "todo",
+      );
+    }),
+  );
+
+  const renderedBlocks =
+    blocks[0]?.type === "divider" ? blocks.slice(1) : blocks;
+
+  return renderedBlocks.length > 0
+    ? renderedBlocks
     : [paragraph("기획서 본문 내용이 없습니다.")];
 }
 
