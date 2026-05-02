@@ -50,9 +50,10 @@ Project creation
 → edit spec sections
 → save edited spec
 → Flush to Notion
-→ create Notion page
+→ create standalone Notion document page
+→ create Notion database publish/index row
 → save publish logs
-→ show Notion link
+→ show standalone Notion document link
 ```
 
 Important product distinction:
@@ -127,6 +128,7 @@ OPENAI_MODEL="gpt-5.4-mini"
 
 NOTION_API_KEY=""
 NOTION_DATABASE_ID=""
+NOTION_PARENT_PAGE_ID=""
 ```
 
 Never commit `.env`.
@@ -252,8 +254,8 @@ Stores Notion publishing history.
 Used for:
 
 - Publish success/failure result
-- Notion page ID
-- Notion page URL
+- Standalone Notion document page ID
+- Standalone Notion document page URL
 - Error message
 - Published timestamp
 
@@ -359,19 +361,23 @@ Do not implement Public Notion OAuth in Phase 5.
 Required work:
 
 - Convert spec JSON into Notion blocks
-- Create a new Notion page
+- Create a clean standalone Notion document page under `NOTION_PARENT_PAGE_ID`
+- Write the readable planning document body into that standalone page
+- Create a row in `NOTION_DATABASE_ID` only as a publish/index log
+- Store the standalone document URL in the database row's `Notion Page URL` property
 - Save publish result
-- Save Notion page ID
-- Save Notion URL
+- Save standalone Notion document page ID
+- Save standalone Notion document page URL
 - Handle failure logs
 - Show success/failure state in UI
-- Show Open Notion link after successful publishing
+- Show/open the standalone Notion document page URL after successful publishing
 
 MVP Notion environment variables:
 
 ```env
 NOTION_API_KEY=""
 NOTION_DATABASE_ID=""
+NOTION_PARENT_PAGE_ID=""
 ```
 
 Phase 5 must use the user's own Notion Internal Integration.
@@ -529,6 +535,7 @@ MVP Notion publishing should use:
 ```env
 NOTION_API_KEY=""
 NOTION_DATABASE_ID=""
+NOTION_PARENT_PAGE_ID=""
 ```
 
 Public Notion OAuth should be handled in Phase 7 or later after user authentication exists.
@@ -850,6 +857,7 @@ OPENAI_API_KEY=""
 OPENAI_MODEL=""
 NOTION_API_KEY=""
 NOTION_DATABASE_ID=""
+NOTION_PARENT_PAGE_ID=""
 ```
 
 When adding OpenAI or Notion integration, assume the user will manually put secrets into `.env`.
@@ -883,15 +891,28 @@ Do not implement these OAuth rules during MVP unless Phase 7 explicitly starts.
 MVP Notion policy:
 
 - Use Internal Notion Integration only.
-- Always create a new Notion page.
+- Always create a new standalone Notion document page under `NOTION_PARENT_PAGE_ID`.
+- Use `NOTION_DATABASE_ID` only as a publish/index log database.
+- The readable planning document must not live inside the Notion database row.
 - Do not update existing Notion pages in MVP.
-- Save Notion page ID and URL after successful publishing.
+- Save standalone Notion document page ID and URL after successful publishing.
 - Save error message after failed publishing.
 - Do not automatically publish AI drafts.
-- Only publish when the user explicitly clicks `Flush to Notion`.
+- Only publish when the user explicitly clicks `Flush to Notion` or `Notion 배포`.
 - Do not implement Public OAuth in Phase 5.
 - Do not implement user-specific Notion accounts in Phase 5.
 - Do not implement user-specific Notion database selection in Phase 5.
+
+Required Notion resources for MVP:
+
+- PlanFlush Documents
+  - Normal Notion page
+  - Parent page for readable generated planning documents
+  - Environment variable: `NOTION_PARENT_PAGE_ID`
+- PlanFlush Specs
+  - Notion database
+  - Publish/index log only
+  - Environment variable: `NOTION_DATABASE_ID`
 
 Notion DB properties expected:
 
@@ -904,9 +925,11 @@ Source
 Created By AI
 Published At
 Summary
+Notion Page URL
 ```
 
-The Notion page body should contain the planning document sections as blocks.
+The standalone Notion document page body should contain the readable planning document sections as blocks.
+The Notion database row should store publish/index metadata and the standalone document URL.
 
 ### 14.1 MVP Internal Integration Policy
 
@@ -917,10 +940,12 @@ Phase 5 publishing flow:
 ```text
 Spec JSON
 → Convert to Notion blocks
-→ Create a new Notion page in the configured Notion database
-→ Save Notion page ID and URL
-→ Save publish log
-→ Show Open Notion link
+→ Create standalone child page under NOTION_PARENT_PAGE_ID
+→ Write full planning document body into that standalone page
+→ Create database row in NOTION_DATABASE_ID as publish/index log
+→ Store standalone page URL in Notion Page URL property
+→ Save standalone page ID and URL to local NotionPublishLog
+→ Show/open standalone Notion page URL in the app
 ```
 
 Use these environment variables:
@@ -928,11 +953,14 @@ Use these environment variables:
 ```env
 NOTION_API_KEY=""
 NOTION_DATABASE_ID=""
+NOTION_PARENT_PAGE_ID=""
 ```
 
 If `NOTION_API_KEY` is missing, return a clear error message.
 
 If `NOTION_DATABASE_ID` is missing, return a clear error message.
+
+If `NOTION_PARENT_PAGE_ID` is missing, return a clear error message.
 
 Do not create, edit, or inspect `.env` unless the user explicitly asks.
 
@@ -1162,6 +1190,10 @@ If dependency installation is required, explain why.
 For Phase 5 Notion work:
 
 - Confirm this is MVP Internal Integration.
+- Use `NOTION_API_KEY`, `NOTION_DATABASE_ID`, and `NOTION_PARENT_PAGE_ID`.
+- Create the readable planning document as a standalone child page under `NOTION_PARENT_PAGE_ID`.
+- Use the Notion database only as a publish/index log.
+- Store the standalone document URL in the database row's `Notion Page URL` property.
 - Do not implement Public OAuth.
 - Do not add login/user models.
 - Do not add user-specific token storage.
@@ -1222,6 +1254,10 @@ For Notion MVP work, include:
 - Server route path
 - Environment variables used
 - Required Notion DB properties
+- Confirmation that a standalone Notion document page is created.
+- Confirmation that the Notion database row is created only as a publish/index log.
+- Confirmation that `Notion Page URL` stores the standalone document URL.
+- Confirmation that the app opens the standalone document URL, not the database row URL.
 - Success response
 - Failure response
 - Publish log behavior
@@ -1604,6 +1640,8 @@ Phase 5 Notion Internal Integration 작업 히스토리에는 가능하면 아�
 - `app/api/specs/[id]/flush/route.ts`
 - Notion helper file paths
 - Notion DB property names
+- `NOTION_PARENT_PAGE_ID` standalone document parent behavior
+- `Notion Page URL` database property behavior
 - Required env variable names only
 - Success response fields
 - Failure response fields
@@ -1959,12 +1997,15 @@ For every task in this repository:
 For Phase 5 specifically:
 
 1. Use Internal Notion Integration only.
-2. Use `NOTION_API_KEY` and `NOTION_DATABASE_ID`.
-3. Do not implement Public OAuth.
-4. Do not add login/user models.
-5. Do not add user-specific token storage.
-6. Do not publish automatically.
-7. Publish only when the user explicitly clicks `Flush to Notion`.
+2. Use `NOTION_API_KEY`, `NOTION_DATABASE_ID`, and `NOTION_PARENT_PAGE_ID`.
+3. Create the readable planning document as a standalone child page under `NOTION_PARENT_PAGE_ID`.
+4. Use the Notion database only as a publish/index log.
+5. Store the standalone document URL in the database row's `Notion Page URL` property.
+6. Do not implement Public OAuth.
+7. Do not add login/user models.
+8. Do not add user-specific token storage.
+9. Do not publish automatically.
+10. Publish only when the user explicitly clicks `Notion 배포` or `Flush to Notion`.
 
 For Phase 7+ specifically:
 
