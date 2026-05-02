@@ -51,6 +51,15 @@ type StringSpecKey = "title" | "summary" | "background";
 
 type ArraySpecKey = Exclude<keyof PlanningSpecContent, StringSpecKey>;
 
+type SpecSectionKey = keyof PlanningSpecContent;
+
+type SpecCategoryKey =
+  | "overview"
+  | "problemDefinition"
+  | "requirements"
+  | "design"
+  | "execution";
+
 const STRING_SECTIONS: { key: StringSpecKey; label: string; multiline: boolean }[] = [
   { key: "title", label: "제목", multiline: false },
   { key: "summary", label: "요약", multiline: true },
@@ -72,6 +81,44 @@ const ARRAY_SECTIONS: { key: ArraySpecKey; label: string }[] = [
   { key: "acceptanceCriteria", label: "인수 조건" },
   { key: "openQuestions", label: "미확정 사항" },
   { key: "actionItems", label: "액션 아이템" },
+];
+
+const SPEC_CATEGORIES: {
+  key: SpecCategoryKey;
+  label: string;
+  description: string;
+  sections: SpecSectionKey[];
+}[] = [
+  {
+    key: "overview",
+    label: "개요",
+    description: "기획서의 제목, 요약, 배경을 정리합니다.",
+    sections: ["title", "summary", "background"],
+  },
+  {
+    key: "problemDefinition",
+    label: "문제 정의",
+    description: "현재 문제, 목표, AS-IS, TO-BE를 정리합니다.",
+    sections: ["problem", "goal", "asIs", "toBe"],
+  },
+  {
+    key: "requirements",
+    label: "요구사항",
+    description: "기능 요구사항, 사용자 흐름, 화면 명세를 정리합니다.",
+    sections: ["requirements", "userFlow", "screenSpecification"],
+  },
+  {
+    key: "design",
+    label: "설계",
+    description: "정책, 예외 케이스, 데이터/API 기준을 정리합니다.",
+    sections: ["policiesAndEdgeCases", "dataAndApi"],
+  },
+  {
+    key: "execution",
+    label: "실행 관리",
+    description: "액션 아이템과 미해결 사항을 정리합니다.",
+    sections: ["actionItems", "openQuestions"],
+  },
 ];
 
 const EMPTY_SPEC_CONTENT: PlanningSpecContent = {
@@ -178,6 +225,38 @@ function isSpecContentEmpty(
   );
 }
 
+function getSectionId(key: SpecSectionKey) {
+  return `section-${key}`;
+}
+
+function getStringSection(key: SpecSectionKey) {
+  return STRING_SECTIONS.find((section) => section.key === key);
+}
+
+function getArraySection(key: SpecSectionKey) {
+  return ARRAY_SECTIONS.find((section) => section.key === key);
+}
+
+function ChevronIcon({ isCollapsed }: { isCollapsed: boolean }) {
+  return (
+    <svg
+      className={styles.chevronIcon}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d={isCollapsed ? "m6 9 6 6 6-6" : "m18 15-6-6-6 6"}
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function SpecEditPage({ params }: PageProps) {
   const { id } = use(params);
   const [spec, setSpec] = useState<Spec | null>(null);
@@ -190,6 +269,15 @@ export default function SpecEditPage({ params }: PageProps) {
   const [error, setError] = useState("");
   const [saveError, setSaveError] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
+  const [collapsedSections, setCollapsedSections] = useState<Set<SpecSectionKey>>(
+    () => new Set(),
+  );
+  const [selectedCategoryKey, setSelectedCategoryKey] =
+    useState<SpecCategoryKey>("overview");
+
+  const selectedCategory =
+    SPEC_CATEGORIES.find((category) => category.key === selectedCategoryKey) ??
+    SPEC_CATEGORIES[0];
 
   const isEmpty = useMemo(
     () => isSpecContentEmpty(draft, arrayDrafts),
@@ -257,6 +345,20 @@ export default function SpecEditPage({ params }: PageProps) {
     setSavedMessage("");
   }
 
+  function toggleSection(key: SpecSectionKey) {
+    setCollapsedSections((current) => {
+      const next = new Set(current);
+
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+
+      return next;
+    });
+  }
+
   async function handleSave() {
     setIsSaving(true);
     setSaveError("");
@@ -301,7 +403,7 @@ export default function SpecEditPage({ params }: PageProps) {
     <div className="pf-page-shell">
       <Header fixed />
 
-      <main className="pf-app-main">
+      <main className={`pf-app-main ${styles.specMain}`}>
         <div className={styles.page}>
           <div className={styles.backRow}>
             <Link href={spec ? `/projects/${spec.projectId}` : "/projects"} className={styles.backLink}>
@@ -367,51 +469,150 @@ export default function SpecEditPage({ params }: PageProps) {
                 </section>
               ) : null}
 
-              <section className={styles.sectionGrid}>
-                {STRING_SECTIONS.map((section) => (
-                  <div className={`pf-card pf-card-pad ${styles.sectionCard}`} key={section.key}>
-                    <label className={styles.sectionLabel} htmlFor={section.key}>
-                      {section.label}
-                    </label>
-                    {section.multiline ? (
-                      <textarea
-                        id={section.key}
-                        className={`pf-textarea ${styles.sectionTextarea}`}
-                        value={draft[section.key]}
-                        onChange={(event) =>
-                          updateStringSection(section.key, event.target.value)
-                        }
-                      />
-                    ) : (
-                      <input
-                        id={section.key}
-                        className="pf-input"
-                        value={draft[section.key]}
-                        onChange={(event) =>
-                          updateStringSection(section.key, event.target.value)
-                        }
-                      />
-                    )}
+              <div className={styles.editorWorkspace}>
+                <aside className={`pf-card pf-card-pad ${styles.tocCard}`} aria-label="기획서 섹션 목차">
+                  <div className={styles.tocHeader}>
+                    <p className={styles.tocTitle}>섹션</p>
                   </div>
-                ))}
 
-                {ARRAY_SECTIONS.map((section) => (
-                  <div className={`pf-card pf-card-pad ${styles.sectionCard}`} key={section.key}>
-                    <label className={styles.sectionLabel} htmlFor={section.key}>
-                      {section.label}
-                    </label>
-                    <textarea
-                      id={section.key}
-                      className={`pf-textarea ${styles.sectionTextarea}`}
-                      value={arrayDrafts[section.key]}
-                      onChange={(event) =>
-                        updateArraySection(section.key, event.target.value)
-                      }
-                      placeholder="한 줄에 하나씩 입력해 주십시오."
-                    />
+                  <nav className={styles.tocList} aria-label="기획서 대분류">
+                    {SPEC_CATEGORIES.map((category) => (
+                      <button
+                        className={`${styles.tocButton} ${
+                          category.key === selectedCategory.key
+                            ? styles.tocButtonActive
+                            : ""
+                        }`}
+                        type="button"
+                        aria-current={
+                          category.key === selectedCategory.key ? "page" : undefined
+                        }
+                        key={category.key}
+                        onClick={() => setSelectedCategoryKey(category.key)}
+                      >
+                        {category.label}
+                      </button>
+                    ))}
+                  </nav>
+                </aside>
+
+                <section className={styles.editorPanel}>
+                  <div className={`pf-card pf-card-pad ${styles.categoryHeader}`}>
+                    <h2 className={styles.categoryTitle}>{selectedCategory.label}</h2>
+                    <p className={styles.categoryDescription}>
+                      {selectedCategory.description}
+                    </p>
                   </div>
-                ))}
-              </section>
+
+                  <div className={styles.sectionGrid}>
+                    {selectedCategory.sections.map((sectionKey) => {
+                      const section = getStringSection(sectionKey);
+
+                      if (!section) {
+                        return null;
+                      }
+
+                      const isCollapsed = collapsedSections.has(section.key);
+
+                      return (
+                        <div
+                          className={`pf-card pf-card-pad ${styles.sectionCard}`}
+                          id={getSectionId(section.key)}
+                          key={section.key}
+                        >
+                          <div className={styles.sectionHeader}>
+                            <label className={styles.sectionLabel} htmlFor={section.key}>
+                              {section.label}
+                            </label>
+                            <button
+                              className={styles.sectionToggle}
+                              type="button"
+                              aria-expanded={!isCollapsed}
+                              aria-label={`${section.label} 섹션 ${
+                                isCollapsed ? "펼치기" : "접기"
+                              }`}
+                              aria-controls={`${section.key}-body`}
+                              onClick={() => toggleSection(section.key)}
+                            >
+                              <ChevronIcon isCollapsed={isCollapsed} />
+                            </button>
+                          </div>
+
+                          <div id={`${section.key}-body`} hidden={isCollapsed}>
+                            {section.multiline ? (
+                              <textarea
+                                id={section.key}
+                                className={`pf-textarea ${styles.sectionTextarea}`}
+                                value={draft[section.key]}
+                                onChange={(event) =>
+                                  updateStringSection(section.key, event.target.value)
+                                }
+                              />
+                            ) : (
+                              <input
+                                id={section.key}
+                                className="pf-input"
+                                value={draft[section.key]}
+                                onChange={(event) =>
+                                  updateStringSection(section.key, event.target.value)
+                                }
+                              />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {selectedCategory.sections.map((sectionKey) => {
+                      const section = getArraySection(sectionKey);
+
+                      if (!section) {
+                        return null;
+                      }
+
+                      const isCollapsed = collapsedSections.has(section.key);
+
+                      return (
+                        <div
+                          className={`pf-card pf-card-pad ${styles.sectionCard}`}
+                          id={getSectionId(section.key)}
+                          key={section.key}
+                        >
+                          <div className={styles.sectionHeader}>
+                            <label className={styles.sectionLabel} htmlFor={section.key}>
+                              {section.label}
+                            </label>
+                            <button
+                              className={styles.sectionToggle}
+                              type="button"
+                              aria-expanded={!isCollapsed}
+                              aria-label={`${section.label} 섹션 ${
+                                isCollapsed ? "펼치기" : "접기"
+                              }`}
+                              aria-controls={`${section.key}-body`}
+                              onClick={() => toggleSection(section.key)}
+                            >
+                              <ChevronIcon isCollapsed={isCollapsed} />
+                            </button>
+                          </div>
+
+                          <div id={`${section.key}-body`} hidden={isCollapsed}>
+                            <textarea
+                              id={section.key}
+                              className={`pf-textarea ${styles.sectionTextarea}`}
+                              value={arrayDrafts[section.key]}
+                              onChange={(event) =>
+                                updateArraySection(section.key, event.target.value)
+                              }
+                              placeholder="한 줄에 하나씩 입력해 주십시오."
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              </div>
 
               <div className={styles.stickySaveBar}>
                 <p className={styles.saveHint}>
