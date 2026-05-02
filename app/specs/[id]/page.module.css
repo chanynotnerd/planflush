@@ -51,14 +51,21 @@
 
 .headerActions {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: flex-end;
+  flex-direction: column;
   gap: 0.6rem;
-  flex-wrap: wrap;
   flex-shrink: 0;
 }
 
-.statusBadge,
+.actionButtonRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
 .metaPill {
   display: inline-flex;
   align-items: center;
@@ -72,16 +79,42 @@
   font-weight: 700;
 }
 
-.statusBadge {
-  border-color: #c7d2fe;
-  background: var(--pf-primary-soft);
-  color: var(--pf-primary);
-}
-
 .metaRow {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.publishMetaPillIdle {
+  color: #64748b;
+}
+
+.publishMetaPillSuccess {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.publishMetaPillError {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.publishMetaPillLink {
+  cursor: pointer;
+  gap: 0.28rem;
+  text-decoration: none;
+}
+
+.publishMetaPillLink:hover {
+  border-color: #86efac;
+  background: #dcfce7;
+}
+
+.externalMark {
+  font-size: 0.72rem;
+  line-height: 1;
 }
 
 .successMessage {
@@ -89,6 +122,13 @@
   color: #15803d;
   font-size: 0.9rem;
   font-weight: 600;
+}
+
+.inlineError {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.84rem;
+  font-weight: 700;
 }
 
 .emptyCard {
@@ -289,6 +329,36 @@
   font-size: 0.82rem;
 }
 
+.saveButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.35rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 800;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.saveButton:hover:not(:disabled) {
+  border-color: var(--pf-primary);
+  background: var(--pf-primary-soft);
+  color: var(--pf-primary);
+}
+
+.saveButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 @media (max-width: 800px) {
   .headerMain,
   .stickySaveBar {
@@ -297,7 +367,13 @@
   }
 
   .headerActions {
+    align-items: flex-start;
     justify-content: flex-start;
+  }
+
+  .actionButtonRow {
+    justify-content: flex-start;
+    text-align: left;
   }
 
   .editorWorkspace {

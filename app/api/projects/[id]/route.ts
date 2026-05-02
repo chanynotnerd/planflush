@@ -50,6 +50,22 @@ export async function GET(
           createdAt: "desc",
         },
       ],
+      include: {
+        publishLogs: {
+          orderBy: [
+            {
+              createdAt: "desc",
+            },
+          ],
+          take: 1,
+          select: {
+            publishStatus: true,
+            notionUrl: true,
+            publishedAt: true,
+            createdAt: true,
+          },
+        },
+      },
     });
 
     return Response.json({

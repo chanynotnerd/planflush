@@ -51,6 +51,12 @@ type Spec = {
   version: number;
   createdAt: string;
   updatedAt: string;
+  publishLogs?: {
+    publishStatus: string;
+    notionUrl: string | null;
+    publishedAt: string | null;
+    createdAt: string;
+  }[];
 };
 
 type ProjectDetailResponse = Project & {
@@ -126,18 +132,18 @@ function sanitizeMessageContent(value: string) {
     .replace(/^\s{0,3}[-*]\s+/gm, "- ");
 }
 
-function getSpecStatusLabel(status: string) {
-  switch (status) {
-    case "AI Draft":
-      return "기획서 초안";
-    case "Draft":
-    case "Edited Draft":
-      return "수정 초안";
-    case "Published":
-      return "배포 완료";
-    default:
-      return status;
+function getLatestPublishLog(spec: Spec | null) {
+  return spec?.publishLogs?.[0] ?? null;
+}
+
+function getNotionPublishStatus(spec: Spec | null) {
+  const latestPublishLog = getLatestPublishLog(spec);
+
+  if (!latestPublishLog) {
+    return "idle";
   }
+
+  return latestPublishLog.publishStatus === "Success" ? "success" : "failed";
 }
 
 export default function ProjectDetailPage({ params }: PageProps) {
@@ -152,6 +158,18 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const [generateError, setGenerateError] = useState("");
   const [content, setContent] = useState("");
   const [generatedSpec, setGeneratedSpec] = useState<Spec | null>(null);
+  const latestPublishLog = getLatestPublishLog(generatedSpec);
+  const notionPublishStatus = getNotionPublishStatus(generatedSpec);
+  const notionPublishedAt =
+    latestPublishLog?.publishedAt ?? latestPublishLog?.createdAt ?? "";
+  const notionUrl =
+    notionPublishStatus === "success" ? latestPublishLog?.notionUrl : null;
+  const notionStatusLabel =
+    notionPublishStatus === "success"
+      ? "Notion 배포 완료"
+      : notionPublishStatus === "failed"
+        ? "Notion 배포 실패"
+        : "Notion 미배포";
 
   useEffect(() => {
     let cancelled = false;
@@ -280,6 +298,15 @@ export default function ProjectDetailPage({ params }: PageProps) {
   }
 
   async function handleGenerateSpec() {
+    if (
+      generatedSpec &&
+      !window.confirm(
+        "기존 기획서를 기준으로 새 기획서를 재생성합니다. 계속하시겠습니까?",
+      )
+    ) {
+      return;
+    }
+
     setIsGeneratingSpec(true);
     setGenerateError("");
 
@@ -337,11 +364,6 @@ export default function ProjectDetailPage({ params }: PageProps) {
                   </div>
 
                   <div className={styles.headerActionArea}>
-                    <p className={styles.generateHint}>
-                      {generatedSpec
-                        ? "현재 대화 기준으로 초안을 다시 생성합니다."
-                        : "대화 기반 초안을 생성합니다."}
-                    </p>
                     <button
                       className="pf-btn-primary"
                       type="button"
@@ -351,7 +373,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                       {isGeneratingSpec
                         ? "기획서 생성 중..."
                         : generatedSpec
-                          ? "기획서 초안 다시 생성"
+                          ? "기획서 재생성"
                           : "기획서 초안 생성"}
                     </button>
                   </div>
@@ -367,6 +389,28 @@ export default function ProjectDetailPage({ params }: PageProps) {
                     최근 수정 {formatDate(project.updatedAt)}
                   </span>
                   <span className={styles.metaPill}>대화 {messages.length}건</span>
+                  {notionUrl ? (
+                    <Link
+                      href={notionUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`${styles.metaPill} ${styles.metaPillLink} ${styles.metaPillSuccess}`}
+                      title="배포된 Notion 페이지 열기"
+                      aria-label="배포된 Notion 페이지 열기"
+                    >
+                      {notionStatusLabel} ↗
+                    </Link>
+                  ) : (
+                    <span
+                      className={`${styles.metaPill} ${
+                        notionPublishStatus === "failed"
+                          ? styles.metaPillFailed
+                          : ""
+                      }`}
+                    >
+                      {notionStatusLabel}
+                    </span>
+                  )}
                 </div>
               </section>
 
@@ -378,9 +422,6 @@ export default function ProjectDetailPage({ params }: PageProps) {
                       <h2 className={styles.specPreviewTitle}>{generatedSpec.title}</h2>
                     </div>
                     <div className={styles.specPreviewActions}>
-                      <span className={styles.specPreviewBadge}>
-                        v{generatedSpec.version} · {getSpecStatusLabel(generatedSpec.status)}
-                      </span>
                       <Link
                         href={`/specs/${generatedSpec.id}`}
                         className="pf-btn-outline"
@@ -556,16 +597,50 @@ export default function ProjectDetailPage({ params }: PageProps) {
                     <h2 className={styles.sideTitle}>현재 상태</h2>
                     <dl className={styles.infoList}>
                       <div className={styles.infoItem}>
-                        <dt className={styles.infoLabel}>프로젝트 ID</dt>
-                        <dd className={styles.infoValue}>#{project.id}</dd>
+                        <dt className={styles.infoLabel}>프로젝트</dt>
+                        <dd className={styles.infoValue}>
+                          {generatedSpec ? `v${generatedSpec.version}` : "기획서 없음"}
+                        </dd>
                       </div>
                       <div className={styles.infoItem}>
                         <dt className={styles.infoLabel}>최근 수정</dt>
                         <dd className={styles.infoValue}>{formatDate(project.updatedAt)}</dd>
                       </div>
                       <div className={styles.infoItem}>
-                        <dt className={styles.infoLabel}>저장된 대화</dt>
+                        <dt className={styles.infoLabel}>대화 수</dt>
                         <dd className={styles.infoValue}>{messages.length}건</dd>
+                      </div>
+                      <div className={styles.infoItem}>
+                        <dt className={styles.infoLabel}>Notion 배포</dt>
+                        <dd className={styles.infoValue}>
+                          {notionPublishStatus === "success" ? (
+                            <span className={styles.notionStatusContent}>
+                              <span className={styles.notionStatusSuccess}>
+                                <span aria-hidden="true">✓</span>
+                                완료
+                              </span>
+                              {notionPublishedAt ? (
+                                <span className={styles.notionStatusDate}>
+                                  {formatDate(notionPublishedAt)}
+                                </span>
+                              ) : null}
+                              {notionUrl ? (
+                                <Link
+                                  href={notionUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className={styles.notionStatusLink}
+                                >
+                                  Notion에서 열기 ↗
+                                </Link>
+                              ) : null}
+                            </span>
+                          ) : notionPublishStatus === "failed" ? (
+                            <span className={styles.notionStatusFailed}>실패</span>
+                          ) : (
+                            <span className={styles.notionStatusIdle}>미배포</span>
+                          )}
+                        </dd>
                       </div>
                     </dl>
                   </section>

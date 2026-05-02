@@ -63,6 +63,26 @@ export async function GET(_request: Request, context: SpecRouteContext) {
             name: true,
           },
         },
+        publishLogs: {
+          where: {
+            publishStatus: "Success",
+            notionUrl: {
+              not: null,
+            },
+          },
+          orderBy: [
+            {
+              publishedAt: "desc",
+            },
+            {
+              createdAt: "desc",
+            },
+          ],
+          take: 1,
+          select: {
+            notionUrl: true,
+          },
+        },
       },
     });
 
