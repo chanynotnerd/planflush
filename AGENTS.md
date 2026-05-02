@@ -72,6 +72,10 @@ Do not merge these steps into one automatic flow.
 
 AI output must not be published to Notion automatically.
 
+For MVP, Flush to Notion uses the user's own Notion Internal Integration.
+
+Public Notion OAuth for multiple users is not part of the MVP flow.
+
 ---
 
 ## 3. Tech Stack
@@ -113,7 +117,7 @@ Do not hardcode database credentials in application code.
 
 Use `.env` and environment variables.
 
-Expected environment variables:
+Expected MVP environment variables:
 
 ```env
 DATABASE_URL="mysql://USER:PASSWORD@localhost:3307/planflush"
@@ -126,6 +130,19 @@ NOTION_DATABASE_ID=""
 ```
 
 Never commit `.env`.
+
+Future Public OAuth environment variables may be added in Phase 7 or later.
+
+Example future variables:
+
+```env
+NOTION_CLIENT_ID=""
+NOTION_CLIENT_SECRET=""
+NOTION_REDIRECT_URI=""
+TOKEN_ENCRYPTION_KEY=""
+```
+
+Do not add these to the MVP unless Phase 7 work explicitly starts.
 
 ---
 
@@ -240,11 +257,19 @@ Used for:
 - Error message
 - Published timestamp
 
+Future Phase 7+ may add user and Notion connection models.
+
+Do not add user-specific Notion models during MVP Phase 5.
+
 ---
 
-## 7. MVP Scope
+## 7. Implementation Scope and Roadmap
 
-Implement the MVP in this order.
+Implement the MVP first.
+
+Phase 1 through Phase 6 are MVP phases.
+
+Phase 7 and later are post-MVP productization phases.
 
 ### Phase 1: Project Foundation
 
@@ -325,11 +350,40 @@ Phase 3.5 must be completed before building the Phase 4 Spec Editing UI.
 
 ### Phase 5: Flush to Notion
 
+Phase 5 proves the MVP Notion publishing flow.
+
+Use Internal Notion Integration only.
+
+Do not implement Public Notion OAuth in Phase 5.
+
+Required work:
+
 - Convert spec JSON into Notion blocks
-- Create Notion page
+- Create a new Notion page
 - Save publish result
+- Save Notion page ID
 - Save Notion URL
 - Handle failure logs
+- Show success/failure state in UI
+- Show Open Notion link after successful publishing
+
+MVP Notion environment variables:
+
+```env
+NOTION_API_KEY=""
+NOTION_DATABASE_ID=""
+```
+
+Phase 5 must use the user's own Notion Internal Integration.
+
+Phase 5 must not include:
+
+- User login
+- Multi-user account system
+- Public Notion OAuth
+- User-specific Notion access token
+- User-specific Notion database selection
+- Updating existing Notion pages
 
 ### Phase 6: Polish
 
@@ -339,6 +393,99 @@ Phase 3.5 must be completed before building the Phase 4 Spec Editing UI.
 - Empty states
 - Basic README
 - Demo scenario
+- Local verification guide
+- Simple portfolio/demo explanation
+
+### Phase 7: User Auth and Public Notion OAuth Foundation
+
+Phase 7 starts post-MVP productization.
+
+The goal is to allow each user to connect their own Notion workspace through Public Notion OAuth.
+
+Do not start Phase 7 until the MVP Phase 5 Internal Integration flow works.
+
+Phase 7 should focus on authentication and connection foundation, not advanced publishing UX.
+
+Suggested scope:
+
+- User authentication foundation
+- User model
+- Session handling
+- Notion Public Integration setup guide
+- Connect Notion button
+- OAuth authorization URL generation
+- OAuth callback API
+- Exchange authorization code for Notion access token
+- Store user-specific Notion connection data
+- Encrypt or safely protect Notion tokens
+- Save connected Notion workspace metadata when available
+- Add Notion connection status UI
+- Add disconnect Notion behavior
+- Handle failed OAuth callback
+- Handle missing OAuth environment variables
+
+Suggested future models:
+
+```text
+User
+NotionConnection
+```
+
+Possible `NotionConnection` fields:
+
+```text
+id
+userId
+workspaceId
+workspaceName
+botId
+accessTokenEncrypted
+refreshTokenEncrypted
+connectedAt
+disconnectedAt
+createdAt
+updatedAt
+```
+
+Do not store raw Notion tokens in plain text.
+
+Do not print Notion OAuth tokens in logs.
+
+Phase 7 environment variables may include:
+
+```env
+NOTION_CLIENT_ID=""
+NOTION_CLIENT_SECRET=""
+NOTION_REDIRECT_URI=""
+TOKEN_ENCRYPTION_KEY=""
+```
+
+### Phase 8: User-specific Notion Publishing UX
+
+Phase 8 expands the Phase 7 OAuth foundation into a usable multi-user publishing experience.
+
+Suggested scope:
+
+- Let each user select or configure their own Notion database
+- Store user-specific Notion database ID
+- Validate selected Notion database properties
+- Publish specs using the connected user's Notion token
+- Save user-specific publish logs
+- Show user-specific Notion connection status before publishing
+- Show clear error when Notion is not connected
+- Show clear error when database access is missing
+- Show clear error when required Notion DB properties are missing
+- Add reconnect behavior when token or permission fails
+- Keep MVP Internal Integration path separate if still needed for local demo
+
+Possible future models:
+
+```text
+NotionDatabaseConfig
+UserPublishLog
+```
+
+Do not mix user-specific OAuth publishing with MVP Internal Integration logic without clear separation.
 
 ---
 
@@ -348,7 +495,14 @@ Do not implement these unless explicitly requested.
 
 - Login
 - Multi-user account system
+- User model
+- User session system
 - Team permission management
+- Public Notion OAuth
+- Multi-user Notion workspace connection
+- User-specific Notion token storage
+- User-specific Notion database selection
+- Token encryption system
 - Slack integration
 - Google Drive integration
 - Text file upload
@@ -367,6 +521,17 @@ Do not implement these unless explicitly requested.
 - Production-grade auth
 
 Keep the MVP focused.
+
+For MVP, use Internal Notion Integration only.
+
+MVP Notion publishing should use:
+
+```env
+NOTION_API_KEY=""
+NOTION_DATABASE_ID=""
+```
+
+Public Notion OAuth should be handled in Phase 7 or later after user authentication exists.
 
 Future file expansion order after MVP:
 
@@ -439,6 +604,20 @@ app/api/specs/[id]/flush/route.ts
 app/api/projects/[id]/publish-logs/route.ts
 ```
 
+Future Phase 7+ API structure may include:
+
+```text
+app/api/auth/[...]/route.ts
+app/api/notion/connect/route.ts
+app/api/notion/callback/route.ts
+app/api/notion/disconnect/route.ts
+app/api/notion/status/route.ts
+app/api/notion/databases/route.ts
+app/api/notion/database-config/route.ts
+```
+
+Do not add Phase 7+ API routes during MVP unless explicitly requested.
+
 Phase 3 API distinction:
 
 ```text
@@ -450,6 +629,13 @@ POST /api/projects/[id]/chat-reply
 
 POST /api/projects/[id]/generate-spec
 = Generate a structured planning document draft from the full saved conversation.
+```
+
+Phase 5 API distinction:
+
+```text
+POST /api/specs/[id]/flush
+= Publish the reviewed spec to Notion using MVP Internal Integration.
 ```
 
 API rules:
@@ -465,6 +651,8 @@ API rules:
 - Do not call OpenAI from client components.
 - Do not call OpenAI on page load.
 - Keep external API logic inside server route handlers or server-side helper functions.
+- Do not call Notion automatically on page load.
+- Only publish to Notion when the user explicitly clicks `Flush to Notion`.
 
 Example error response:
 
@@ -506,6 +694,18 @@ Spec edit screen
 Publish history
 ```
 
+Future Phase 7+ screens may include:
+
+```text
+/settings/notion
+Notion connection settings
+
+/settings/account
+Basic account settings
+```
+
+Do not add these screens during MVP unless explicitly requested.
+
 UI expectations:
 
 - Show loading states.
@@ -536,6 +736,9 @@ Spec
 
 Flush to Notion
 → Flush to Notion or Notion 배포
+
+Connect Notion
+→ Notion 연결
 ```
 
 Internal API paths, model names, and code identifiers may remain in English.
@@ -548,6 +751,8 @@ AI chat
 → draft editing
 → Notion publishing
 ```
+
+For MVP, do not show Public OAuth or user-specific Notion settings.
 
 ### UI Design Reference
 
@@ -606,6 +811,18 @@ When writing code:
 - Keep external API logic isolated in service/helper files.
 - Keep prompt-building logic isolated when practical.
 - Keep OpenAI integration easy to extend later for txt/PDF sources, but do not implement those sources during MVP.
+- Keep Notion block conversion isolated when practical.
+- Keep MVP Internal Integration logic separate from future Public OAuth logic.
+
+Suggested Notion helper files for Phase 5:
+
+```text
+lib/notion/client.ts
+lib/notion/blocks.ts
+lib/notion/publishSpec.ts
+```
+
+Do not create large Notion architecture during MVP.
 
 ---
 
@@ -622,8 +839,10 @@ Do not commit:
 - Notion tokens
 - OpenAI keys
 - Database passwords
+- OAuth client secrets
+- Encryption keys
 
-Use environment variables:
+Use MVP environment variables:
 
 ```env
 DATABASE_URL=""
@@ -643,18 +862,36 @@ Additional `.env` handling rules:
 - It is acceptable to create or update `.env.example` with placeholder values only.
 - Never include real secrets, tokens, API keys, or database passwords in `.env.example`.
 
+Future Public OAuth security rules:
+
+- Do not store raw Notion OAuth tokens in plain text.
+- Encrypt or otherwise safely protect user-specific Notion tokens.
+- Do not print OAuth tokens in logs.
+- Do not expose tokens to client components.
+- Do not put OAuth secrets in frontend code.
+- Use server-side route handlers for OAuth callback and token exchange.
+- Use `state` parameter or equivalent protection to reduce OAuth CSRF risk.
+- Validate redirect URI consistency.
+- Handle disconnect/revoke scenarios clearly.
+
+Do not implement these OAuth rules during MVP unless Phase 7 explicitly starts.
+
 ---
 
 ## 14. Notion Integration Rules
 
 MVP Notion policy:
 
+- Use Internal Notion Integration only.
 - Always create a new Notion page.
 - Do not update existing Notion pages in MVP.
 - Save Notion page ID and URL after successful publishing.
 - Save error message after failed publishing.
 - Do not automatically publish AI drafts.
 - Only publish when the user explicitly clicks `Flush to Notion`.
+- Do not implement Public OAuth in Phase 5.
+- Do not implement user-specific Notion accounts in Phase 5.
+- Do not implement user-specific Notion database selection in Phase 5.
 
 Notion DB properties expected:
 
@@ -670,6 +907,68 @@ Summary
 ```
 
 The Notion page body should contain the planning document sections as blocks.
+
+### 14.1 MVP Internal Integration Policy
+
+For Phase 5, use the user's own Notion Internal Integration.
+
+Phase 5 publishing flow:
+
+```text
+Spec JSON
+→ Convert to Notion blocks
+→ Create a new Notion page in the configured Notion database
+→ Save Notion page ID and URL
+→ Save publish log
+→ Show Open Notion link
+```
+
+Use these environment variables:
+
+```env
+NOTION_API_KEY=""
+NOTION_DATABASE_ID=""
+```
+
+If `NOTION_API_KEY` is missing, return a clear error message.
+
+If `NOTION_DATABASE_ID` is missing, return a clear error message.
+
+Do not create, edit, or inspect `.env` unless the user explicitly asks.
+
+Do not hardcode Notion secrets.
+
+### 14.2 Future Public OAuth Policy
+
+Public Notion OAuth should be handled in Phase 7 or later.
+
+Public OAuth is for multi-user productization.
+
+Public OAuth requires:
+
+- User authentication
+- User-specific Notion connection
+- OAuth callback handling
+- Secure token storage
+- User-specific Notion database configuration
+- User-specific publishing behavior
+
+This is intentionally excluded from the MVP because login and multi-user account systems are out of scope.
+
+Future Public OAuth flow:
+
+```text
+User logs in
+→ User clicks Connect Notion
+→ Redirect to Notion OAuth consent screen
+→ Notion redirects back with authorization code
+→ Server exchanges code for access token
+→ Server stores encrypted user-specific Notion token
+→ User selects/configures Notion database
+→ Flush to Notion uses that user's token and database
+```
+
+Do not mix this flow into Phase 5.
 
 ---
 
@@ -860,6 +1159,24 @@ Do not silently change dependencies.
 
 If dependency installation is required, explain why.
 
+For Phase 5 Notion work:
+
+- Confirm this is MVP Internal Integration.
+- Do not implement Public OAuth.
+- Do not add login/user models.
+- Do not add user-specific token storage.
+- Keep Notion publishing small and testable.
+- Report required Notion DB properties.
+- Report required `.env` variable names only, not values.
+
+For Phase 7+ OAuth work:
+
+- Confirm Phase 7 has explicitly started.
+- Explain schema changes before applying migrations.
+- Treat token storage as sensitive.
+- Keep OAuth code server-side.
+- Do not expose client secrets to client components.
+
 ---
 
 ## 17. Definition of Done
@@ -898,6 +1215,29 @@ For OpenAI work, include:
 - Fallback behavior
 - Failure behavior
 - Confirmation that no secrets are exposed
+
+For Notion MVP work, include:
+
+- Trigger condition
+- Server route path
+- Environment variables used
+- Required Notion DB properties
+- Success response
+- Failure response
+- Publish log behavior
+- Confirmation that no secrets are exposed
+- Confirmation that Public OAuth was not added
+
+For future Notion OAuth work, include:
+
+- OAuth trigger condition
+- Redirect route
+- Callback route
+- Token exchange behavior
+- Token storage behavior
+- Disconnect behavior
+- User-specific database configuration behavior
+- Confirmation that client secrets are not exposed
 
 ---
 
@@ -977,6 +1317,14 @@ Invoke-RestMethod `
   -Method POST
 ```
 
+Future Flush to Notion API example:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://localhost:3000/api/specs/1/flush" `
+  -Method POST
+```
+
 ---
 
 ## 19. Quality Bar
@@ -1001,6 +1349,10 @@ Avoid unnecessary complexity.
 
 Whenever there are multiple options, choose the option that helps the user continue development fastest while keeping the codebase clean.
 
+For MVP, prefer Internal Notion Integration over Public OAuth.
+
+Public OAuth should be introduced only when the app has user authentication and a clear multi-user publishing requirement.
+
 ---
 
 ## 20. Communication Style
@@ -1016,6 +1368,14 @@ When responding to the user:
 - Keep the next action clear.
 
 The user is building this project with Codex step by step, so every response should help the user move forward without confusion.
+
+When discussing Notion:
+
+- Clearly separate MVP Internal Integration from future Public OAuth.
+- Say "Phase 5 = 내 Notion으로 MVP 발행 증명" when explaining simply.
+- Say "Phase 7+ = 사용자별 Notion 연결" when explaining future expansion.
+- Do not imply Public OAuth is impossible for Codex.
+- Explain that Codex can implement OAuth code, but the user must create/configure the Notion Public Integration and secrets manually.
 
 ---
 
@@ -1061,6 +1421,9 @@ Project detail
 → AI PM Tuning
 → Spec editing
 → Flush to Notion
+→ Polish
+→ User Auth and Public Notion OAuth Foundation
+→ User-specific Notion Publishing UX
 ```
 
 ---
@@ -1234,6 +1597,29 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/projects" -Method GET
 
 표는 핵심 항목만 유지하십시오.
 
+### Notion 관련 hist 작성 규칙
+
+Phase 5 Notion Internal Integration 작업 히스토리에는 가능하면 아래를 포함하십시오.
+
+- `app/api/specs/[id]/flush/route.ts`
+- Notion helper file paths
+- Notion DB property names
+- Required env variable names only
+- Success response fields
+- Failure response fields
+- Publish log fields
+- Confirmation that Public OAuth was not implemented
+
+Phase 7+ Public OAuth 작업 히스토리에는 가능하면 아래를 포함하십시오.
+
+- Auth-related model changes
+- Notion OAuth route paths
+- Token storage approach
+- Encryption approach
+- OAuth callback validation
+- User-specific database configuration behavior
+- Security limitations
+
 ---
 
 ### docs/ 디렉토리 규칙
@@ -1257,6 +1643,16 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/projects" -Method GET
 - 회의성 메모
 - 임시 판단 기록
 - 구현 히스토리
+
+Public OAuth 설계 문서를 작성한다면 `docs/`에 둘 수 있습니다.
+
+예시:
+
+```text
+docs/notion-oauth-design.md
+```
+
+단, 실제 구현 히스토리는 `hist/`에 작성하십시오.
 
 ---
 
@@ -1473,6 +1869,21 @@ When explaining a plan, use this compact structure:
 - ...
 ```
 
+### For Notion Planning
+
+When explaining Notion work, clearly separate current and future scope:
+
+```text
+현재:
+- Phase 5 Internal Integration
+
+나중:
+- Phase 7 Public OAuth
+- Phase 8 User-specific publishing
+```
+
+Do not mix MVP and Public OAuth implementation plans.
+
 ### For Long Tasks
 
 For long tasks, do not explain everything at once.
@@ -1534,12 +1945,32 @@ Short, accurate, actionable Korean.
 For every task in this repository:
 
 1. Read `AGENTS.md`.
-2. Follow the MVP scope.
-3. Keep changes small.
-4. Do not hardcode secrets.
-5. Do not modify unrelated files.
-6. Use absolute paths in commands when possible.
-7. Explain before editing.
-8. Report after editing.
-9. Respond to the user in Korean 존댓말.
-10. Use concise Caveman-style compression without losing clarity.
+2. Follow the current phase scope.
+3. Keep MVP Phase 1-6 separate from post-MVP Phase 7+.
+4. Keep changes small.
+5. Do not hardcode secrets.
+6. Do not modify unrelated files.
+7. Use absolute paths in commands when possible.
+8. Explain before editing.
+9. Report after editing.
+10. Respond to the user in Korean 존댓말.
+11. Use concise Caveman-style compression without losing clarity.
+
+For Phase 5 specifically:
+
+1. Use Internal Notion Integration only.
+2. Use `NOTION_API_KEY` and `NOTION_DATABASE_ID`.
+3. Do not implement Public OAuth.
+4. Do not add login/user models.
+5. Do not add user-specific token storage.
+6. Do not publish automatically.
+7. Publish only when the user explicitly clicks `Flush to Notion`.
+
+For Phase 7+ specifically:
+
+1. Start only when explicitly requested.
+2. Implement user authentication before user-specific Notion publishing.
+3. Use Public Notion OAuth for multi-user Notion connection.
+4. Store user-specific Notion tokens securely.
+5. Keep OAuth secrets server-side only.
+6. Separate OAuth publishing from MVP Internal Integration logic.
