@@ -15,9 +15,25 @@ export async function GET() {
       orderBy: {
         updatedAt: "desc",
       },
+      include: {
+        _count: {
+          select: {
+            publishLogs: {
+              where: {
+                publishStatus: "Success",
+              },
+            },
+          },
+        },
+      },
     });
 
-    return Response.json(projects);
+    return Response.json(
+      projects.map(({ _count, ...project }) => ({
+        ...project,
+        successfulPublishCount: _count.publishLogs,
+      })),
+    );
   } catch (error) {
     console.error("Failed to fetch projects.", error);
 

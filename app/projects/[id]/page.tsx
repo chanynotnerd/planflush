@@ -73,6 +73,11 @@ type ChatMessageErrorResponse = {
   userMessage?: Message;
 };
 
+type ToastState = {
+  message: string;
+  type: "success" | "error";
+};
+
 type PageProps = {
   params: Promise<{
     id: string;
@@ -158,6 +163,8 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const [generateError, setGenerateError] = useState("");
   const [content, setContent] = useState("");
   const [generatedSpec, setGeneratedSpec] = useState<Spec | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
   const latestPublishLog = getLatestPublishLog(generatedSpec);
   const notionPublishStatus = getNotionPublishStatus(generatedSpec);
   const notionPublishedAt =
@@ -236,6 +243,24 @@ export default function ProjectDetailPage({ params }: PageProps) {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setToast(null);
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [toast]);
+
+  function showToast(message: string, type: ToastState["type"]) {
+    setToast({ message, type });
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -297,16 +322,17 @@ export default function ProjectDetailPage({ params }: PageProps) {
     }
   }
 
-  async function handleGenerateSpec() {
-    if (
-      generatedSpec &&
-      !window.confirm(
-        "기존 기획서를 기준으로 새 기획서를 재생성합니다. 계속하시겠습니까?",
-      )
-    ) {
+  function handleGenerateSpecRequest() {
+    if (generatedSpec) {
+      setIsRegenerateConfirmOpen(true);
       return;
     }
 
+    void handleGenerateSpec();
+  }
+
+  async function handleGenerateSpec() {
+    setIsRegenerateConfirmOpen(false);
     setIsGeneratingSpec(true);
     setGenerateError("");
 
@@ -323,12 +349,15 @@ export default function ProjectDetailPage({ params }: PageProps) {
             ? localizeApiMessage(data.message)
             : "기획서 초안을 생성하지 못했습니다.",
         );
+        showToast("기획서 생성에 실패했습니다.", "error");
         return;
       }
 
       setGeneratedSpec(data);
+      showToast("기획서 생성 완료되었습니다.", "success");
     } catch {
       setGenerateError("기획서 초안을 생성하지 못했습니다.");
+      showToast("기획서 생성에 실패했습니다.", "error");
     } finally {
       setIsGeneratingSpec(false);
     }
@@ -367,7 +396,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                     <button
                       className="pf-btn-primary"
                       type="button"
-                      onClick={() => void handleGenerateSpec()}
+                      onClick={handleGenerateSpecRequest}
                       disabled={isGeneratingSpec}
                     >
                       {isGeneratingSpec
@@ -616,7 +645,6 @@ export default function ProjectDetailPage({ params }: PageProps) {
                           {notionPublishStatus === "success" ? (
                             <span className={styles.notionStatusContent}>
                               <span className={styles.notionStatusSuccess}>
-                                <span aria-hidden="true">✓</span>
                                 완료
                               </span>
                               {notionPublishedAt ? (
@@ -635,8 +663,6 @@ export default function ProjectDetailPage({ params }: PageProps) {
                                 </Link>
                               ) : null}
                             </span>
-                          ) : notionPublishStatus === "failed" ? (
-                            <span className={styles.notionStatusFailed}>실패</span>
                           ) : (
                             <span className={styles.notionStatusIdle}>미배포</span>
                           )}
@@ -668,6 +694,58 @@ export default function ProjectDetailPage({ params }: PageProps) {
       </main>
 
       <Footer />
+
+      {isRegenerateConfirmOpen ? (
+        <div
+          className={styles.modalOverlay}
+          role="presentation"
+          onMouseDown={() => setIsRegenerateConfirmOpen(false)}
+        >
+          <section
+            className={styles.confirmModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="regenerate-spec-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <h2 id="regenerate-spec-title" className={styles.confirmTitle}>
+              기획서를 재생성하시겠습니까?
+            </h2>
+            <p className={styles.confirmBody}>
+              기존 기획서 초안이 새 내용으로 대체될 수 있습니다.
+            </p>
+            <div className={styles.confirmActions}>
+              <button
+                className="pf-btn-outline"
+                type="button"
+                onClick={() => setIsRegenerateConfirmOpen(false)}
+              >
+                취소
+              </button>
+              <button
+                className="pf-btn-primary"
+                type="button"
+                onClick={() => void handleGenerateSpec()}
+                disabled={isGeneratingSpec}
+              >
+                기획서 재생성
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {toast ? (
+        <div
+          className={`${styles.toast} ${
+            toast.type === "success" ? styles.toastSuccess : styles.toastError
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {toast.message}
+        </div>
+      ) : null}
     </div>
   );
 }

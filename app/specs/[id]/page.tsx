@@ -50,6 +50,11 @@ type FlushResponse = {
   notionPageUrl?: string;
 };
 
+type ToastState = {
+  message: string;
+  type: "success" | "error";
+};
+
 type PageProps = {
   params: Promise<{
     id: string;
@@ -278,6 +283,7 @@ export default function SpecEditPage({ params }: PageProps) {
   const [publishError, setPublishError] = useState("");
   const [publishMessage, setPublishMessage] = useState("");
   const [notionPageUrl, setNotionPageUrl] = useState("");
+  const [toast, setToast] = useState<ToastState | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<SpecSectionKey>>(
     () => new Set(),
   );
@@ -293,6 +299,14 @@ export default function SpecEditPage({ params }: PageProps) {
     [arrayDrafts, draft],
   );
   const latestNotionPageUrl = notionPageUrl || spec?.publishLogs?.[0]?.notionUrl || "";
+  const hasPublishedToNotion = Boolean(
+    latestNotionPageUrl || spec?.status === "Published",
+  );
+  const publishButtonLabel = isPublishing
+    ? "배포 중..."
+    : hasPublishedToNotion
+      ? "Notion 재배포"
+      : "Notion 배포";
   const publishStatusLabel = publishError
     ? "Notion 배포 실패"
     : publishMessage || latestNotionPageUrl || spec?.status === "Published"
@@ -344,6 +358,24 @@ export default function SpecEditPage({ params }: PageProps) {
       cancelled = true;
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setToast(null);
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [toast]);
+
+  function showToast(message: string, type: ToastState["type"]) {
+    setToast({ message, type });
+  }
 
   function updateStringSection(key: StringSpecKey, value: string) {
     setDraft((current) => ({
@@ -405,15 +437,21 @@ export default function SpecEditPage({ params }: PageProps) {
             ? localizeApiMessage(data.message)
             : "기획서를 저장하지 못했습니다.",
         );
+        showToast("기획서 저장에 실패했습니다.", "error");
         return;
       }
 
-      setSpec(data);
+      setSpec((current) => ({
+        ...data,
+        publishLogs: data.publishLogs ?? current?.publishLogs,
+      }));
       setDraft(data.contentJson);
       setArrayDrafts(createArrayDrafts(data.contentJson));
+      showToast("기획서 저장 완료되었습니다.", "success");
       setSavedMessage("기획서가 저장되었습니다.");
     } catch {
       setSaveError("기획서를 저장하지 못했습니다.");
+      showToast("기획서 저장에 실패했습니다.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -434,6 +472,7 @@ export default function SpecEditPage({ params }: PageProps) {
 
       if (!response.ok) {
         setPublishError(localizeApiMessage(data.message));
+        showToast("Notion 배포에 실패했습니다.", "error");
         return;
       }
 
@@ -447,8 +486,10 @@ export default function SpecEditPage({ params }: PageProps) {
       );
       setPublishMessage(localizeApiMessage(data.message) || "Notion 배포가 완료되었습니다.");
       setNotionPageUrl(data.notionPageUrl ?? "");
+      showToast("Notion 배포 완료되었습니다.", "success");
     } catch {
       setPublishError("Notion 배포에 실패했습니다.");
+      showToast("Notion 배포에 실패했습니다.", "error");
     } finally {
       setIsPublishing(false);
     }
@@ -496,7 +537,7 @@ export default function SpecEditPage({ params }: PageProps) {
                         onClick={() => void handleFlushToNotion()}
                         disabled={isPublishing || isSaving}
                       >
-                        {isPublishing ? "배포 중..." : "Notion 배포"}
+                        {publishButtonLabel}
                       </button>
                     </div>
                   </div>
@@ -713,6 +754,18 @@ export default function SpecEditPage({ params }: PageProps) {
       </main>
 
       <Footer />
+
+      {toast ? (
+        <div
+          className={`${styles.toast} ${
+            toast.type === "success" ? styles.toastSuccess : styles.toastError
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {toast.message}
+        </div>
+      ) : null}
     </div>
   );
 }

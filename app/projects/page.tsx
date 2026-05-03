@@ -12,6 +12,7 @@ type Project = {
   description: string | null;
   createdAt: string;
   updatedAt: string;
+  successfulPublishCount: number;
 };
 
 function localizeApiMessage(message?: string) {
@@ -45,6 +46,10 @@ export default function ProjectsPage() {
   );
   const latestProject = sortedProjects[0] ?? null;
   const latestProjectName = latestProject ? latestProject.name : "아직 없음";
+  const totalSuccessfulPublishCount = projects.reduce(
+    (sum, project) => sum + project.successfulPublishCount,
+    0,
+  );
 
   useEffect(() => {
     void loadProjects();
@@ -211,8 +216,10 @@ export default function ProjectsPage() {
                     </svg>
                   </span>
                   <div>
-                    <p className={styles.metricLabel}>노션 배포 완료</p>
-                    <strong className={styles.metricValue}>0건</strong>
+                    <p className={styles.metricLabel}>Notion 배포 완료</p>
+                    <strong className={styles.metricValue}>
+                      {totalSuccessfulPublishCount}건
+                    </strong>
                   </div>
                 </div>
               </div>
@@ -322,6 +329,17 @@ export default function ProjectsPage() {
                       <p className={styles.projectMeta}>
                         최근 수정 {formatDate(project.updatedAt)}
                       </p>
+                      {project.successfulPublishCount > 0 ? (
+                        <span className={styles.publishBadge}>
+                          Notion 배포 완료 {project.successfulPublishCount}건
+                        </span>
+                      ) : (
+                        <span
+                          className={`${styles.publishBadge} ${styles.publishBadgeNeutral}`}
+                        >
+                          Notion 미배포
+                        </span>
+                      )}
                     </div>
                     <span className={styles.projectArrow}>›</span>
                   </Link>

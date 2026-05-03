@@ -359,6 +359,35 @@
   opacity: 0.58;
 }
 
+.toast {
+  position: fixed;
+  top: 5.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: min(360px, calc(100vw - 2rem));
+  padding: 0.82rem 1rem;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--pf-text);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.toastSuccess {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.toastError {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 @media (max-width: 800px) {
   .headerMain,
   .stickySaveBar {
