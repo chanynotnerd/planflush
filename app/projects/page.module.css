@@ -236,6 +236,27 @@
   font-weight: 500;
 }
 
+.publishBadge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 2rem;
+  margin-top: 0.65rem;
+  padding: 0.3rem 0.68rem;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #15803d;
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+
+.publishBadgeNeutral {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+}
+
 .projectArrow {
   flex-shrink: 0;
   width: 2rem;

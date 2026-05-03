@@ -39,6 +39,20 @@ type Spec = {
     id: number;
     name: string;
   };
+  publishLogs?: {
+    notionUrl: string | null;
+  }[];
+};
+
+type FlushResponse = {
+  message: string;
+  notionPageId?: string;
+  notionPageUrl?: string;
+};
+
+type ToastState = {
+  message: string;
+  type: "success" | "error";
 };
 
 type PageProps = {
@@ -159,6 +173,16 @@ function localizeApiMessage(message?: string) {
       return "기획서를 불러오지 못했습니다.";
     case "Failed to update spec.":
       return "기획서를 저장하지 못했습니다.";
+    case "NOTION_API_KEY is not configured.":
+      return "NOTION_API_KEY가 설정되어 있지 않습니다.";
+    case "NOTION_DATABASE_ID is not configured.":
+      return "NOTION_DATABASE_ID가 설정되어 있지 않습니다.";
+    case "Failed to publish spec to Notion.":
+    case "Notion 배포에 실패했습니다.":
+      return "Notion 배포에 실패했습니다.";
+    case "Spec published to Notion.":
+    case "Notion 배포가 완료되었습니다.":
+      return "Notion 배포가 완료되었습니다.";
     default:
       return message ?? "";
   }
@@ -166,20 +190,6 @@ function localizeApiMessage(message?: string) {
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString("ko-KR");
-}
-
-function getSpecStatusLabel(status: string) {
-  switch (status) {
-    case "AI Draft":
-      return "기획서 초안";
-    case "Draft":
-    case "Edited Draft":
-      return "수정 초안";
-    case "Published":
-      return "배포 완료";
-  }
-
-  return status;
 }
 
 function arrayToTextarea(value: string[]) {
@@ -266,9 +276,14 @@ export default function SpecEditPage({ params }: PageProps) {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [error, setError] = useState("");
   const [saveError, setSaveError] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
+  const [publishError, setPublishError] = useState("");
+  const [publishMessage, setPublishMessage] = useState("");
+  const [notionPageUrl, setNotionPageUrl] = useState("");
+  const [toast, setToast] = useState<ToastState | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<SpecSectionKey>>(
     () => new Set(),
   );
@@ -283,6 +298,20 @@ export default function SpecEditPage({ params }: PageProps) {
     () => isSpecContentEmpty(draft, arrayDrafts),
     [arrayDrafts, draft],
   );
+  const latestNotionPageUrl = notionPageUrl || spec?.publishLogs?.[0]?.notionUrl || "";
+  const hasPublishedToNotion = Boolean(
+    latestNotionPageUrl || spec?.status === "Published",
+  );
+  const publishButtonLabel = isPublishing
+    ? "배포 중..."
+    : hasPublishedToNotion
+      ? "Notion 재배포"
+      : "Notion 배포";
+  const publishStatusLabel = publishError
+    ? "Notion 배포 실패"
+    : publishMessage || latestNotionPageUrl || spec?.status === "Published"
+      ? "Notion 배포 완료"
+      : "미배포";
 
   useEffect(() => {
     let cancelled = false;
@@ -311,6 +340,7 @@ export default function SpecEditPage({ params }: PageProps) {
         setSpec(data);
         setDraft(data.contentJson);
         setArrayDrafts(createArrayDrafts(data.contentJson));
+        setNotionPageUrl(data.publishLogs?.[0]?.notionUrl ?? "");
       } catch {
         if (!cancelled) {
           setError("기획서를 불러오지 못했습니다.");
@@ -329,12 +359,32 @@ export default function SpecEditPage({ params }: PageProps) {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setToast(null);
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [toast]);
+
+  function showToast(message: string, type: ToastState["type"]) {
+    setToast({ message, type });
+  }
+
   function updateStringSection(key: StringSpecKey, value: string) {
     setDraft((current) => ({
       ...current,
       [key]: value,
     }));
     setSavedMessage("");
+    setPublishMessage("");
+    setNotionPageUrl("");
   }
 
   function updateArraySection(key: ArraySpecKey, value: string) {
@@ -343,6 +393,8 @@ export default function SpecEditPage({ params }: PageProps) {
       [key]: value,
     }));
     setSavedMessage("");
+    setPublishMessage("");
+    setNotionPageUrl("");
   }
 
   function toggleSection(key: SpecSectionKey) {
@@ -385,17 +437,61 @@ export default function SpecEditPage({ params }: PageProps) {
             ? localizeApiMessage(data.message)
             : "기획서를 저장하지 못했습니다.",
         );
+        showToast("기획서 저장에 실패했습니다.", "error");
         return;
       }
 
-      setSpec(data);
+      setSpec((current) => ({
+        ...data,
+        publishLogs: data.publishLogs ?? current?.publishLogs,
+      }));
       setDraft(data.contentJson);
       setArrayDrafts(createArrayDrafts(data.contentJson));
+      showToast("기획서 저장 완료되었습니다.", "success");
       setSavedMessage("기획서가 저장되었습니다.");
     } catch {
       setSaveError("기획서를 저장하지 못했습니다.");
+      showToast("기획서 저장에 실패했습니다.", "error");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleFlushToNotion() {
+    setIsPublishing(true);
+    setPublishError("");
+    setPublishMessage("");
+    setNotionPageUrl("");
+
+    try {
+      const response = await fetch(`/api/specs/${id}/flush`, {
+        method: "POST",
+      });
+
+      const data = (await response.json()) as FlushResponse;
+
+      if (!response.ok) {
+        setPublishError(localizeApiMessage(data.message));
+        showToast("Notion 배포에 실패했습니다.", "error");
+        return;
+      }
+
+      setSpec((current) =>
+        current
+          ? {
+              ...current,
+              status: "Published",
+            }
+          : current,
+      );
+      setPublishMessage(localizeApiMessage(data.message) || "Notion 배포가 완료되었습니다.");
+      setNotionPageUrl(data.notionPageUrl ?? "");
+      showToast("Notion 배포 완료되었습니다.", "success");
+    } catch {
+      setPublishError("Notion 배포에 실패했습니다.");
+      showToast("Notion 배포에 실패했습니다.", "error");
+    } finally {
+      setIsPublishing(false);
     }
   }
 
@@ -434,17 +530,16 @@ export default function SpecEditPage({ params }: PageProps) {
                   </div>
 
                   <div className={styles.headerActions}>
-                    <span className={styles.statusBadge}>
-                      v{spec.version} · {getSpecStatusLabel(spec.status)}
-                    </span>
-                    <button
-                      className="pf-btn-primary"
-                      type="button"
-                      onClick={() => void handleSave()}
-                      disabled={isSaving}
-                    >
-                      {isSaving ? "저장 중..." : "기획서 저장"}
-                    </button>
+                    <div className={styles.actionButtonRow}>
+                      <button
+                        className="pf-btn-primary"
+                        type="button"
+                        onClick={() => void handleFlushToNotion()}
+                        disabled={isPublishing || isSaving}
+                      >
+                        {publishButtonLabel}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -454,10 +549,36 @@ export default function SpecEditPage({ params }: PageProps) {
                   <span className={styles.metaPill}>
                     최근 수정 {formatDate(spec.updatedAt)}
                   </span>
+                  {latestNotionPageUrl && !publishError ? (
+                    <Link
+                      className={`${styles.metaPill} ${styles.publishMetaPillSuccess} ${styles.publishMetaPillLink}`}
+                      href={latestNotionPageUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="배포된 Notion 페이지 열기"
+                      aria-label="배포된 Notion 페이지 열기"
+                    >
+                      {publishStatusLabel}
+                      <span aria-hidden="true" className={styles.externalMark}>
+                        ↗
+                      </span>
+                    </Link>
+                  ) : (
+                    <span
+                      className={`${styles.metaPill} ${
+                        publishError
+                          ? styles.publishMetaPillError
+                          : styles.publishMetaPillIdle
+                      }`}
+                    >
+                      {publishStatusLabel}
+                    </span>
+                  )}
                 </div>
 
                 {savedMessage ? <p className={styles.successMessage}>{savedMessage}</p> : null}
                 {saveError ? <p className="pf-status pf-error">{saveError}</p> : null}
+                {publishError ? <p className={styles.inlineError}>{publishError}</p> : null}
               </section>
 
               {isEmpty ? (
@@ -619,10 +740,10 @@ export default function SpecEditPage({ params }: PageProps) {
                   목록형 섹션은 Enter로 줄을 나누면 별도 항목으로 저장됩니다.
                 </p>
                 <button
-                  className="pf-btn-primary"
+                  className={styles.saveButton}
                   type="button"
                   onClick={() => void handleSave()}
-                  disabled={isSaving}
+                  disabled={isSaving || isPublishing}
                 >
                   {isSaving ? "저장 중..." : "기획서 저장"}
                 </button>
@@ -633,6 +754,18 @@ export default function SpecEditPage({ params }: PageProps) {
       </main>
 
       <Footer />
+
+      {toast ? (
+        <div
+          className={`${styles.toast} ${
+            toast.type === "success" ? styles.toastSuccess : styles.toastError
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {toast.message}
+        </div>
+      ) : null}
     </div>
   );
 }
