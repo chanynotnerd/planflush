@@ -66,6 +66,12 @@
   gap: 0.6rem;
 }
 
+.publishLogLink {
+  padding: 0.58rem 1rem;
+  color: #475569;
+  box-shadow: none;
+}
+
 .metaPill {
   display: inline-flex;
   align-items: center;
