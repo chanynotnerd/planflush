@@ -531,6 +531,12 @@ export default function SpecEditPage({ params }: PageProps) {
 
                   <div className={styles.headerActions}>
                     <div className={styles.actionButtonRow}>
+                      <Link
+                        href={`/projects/${spec.projectId}/publish-logs?specId=${spec.id}`}
+                        className={`pf-btn-outline ${styles.publishLogLink}`}
+                      >
+                        배포 이력
+                      </Link>
                       <button
                         className="pf-btn-primary"
                         type="button"
