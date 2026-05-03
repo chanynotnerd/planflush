@@ -133,7 +133,7 @@ NOTION_PARENT_PAGE_ID=""
 
 Never commit `.env`.
 
-Future Public OAuth environment variables may be added in Phase 7 or later.
+Future Public OAuth environment variables may be added in Post-MVP 7 or later.
 
 Example future variables:
 
@@ -144,7 +144,7 @@ NOTION_REDIRECT_URI=""
 TOKEN_ENCRYPTION_KEY=""
 ```
 
-Do not add these to the MVP unless Phase 7 work explicitly starts.
+Do not add these to the MVP unless Post-MVP 7 work explicitly starts.
 
 ---
 
@@ -259,7 +259,7 @@ Used for:
 - Error message
 - Published timestamp
 
-Future Phase 7+ may add user and Notion connection models.
+Post-MVP 7+ may add user and Notion connection models.
 
 Do not add user-specific Notion models during MVP Phase 5.
 
@@ -271,7 +271,7 @@ Implement the MVP first.
 
 Phase 1 through Phase 6 are MVP phases.
 
-Phase 7 and later are post-MVP productization phases.
+After Phase 6, follow the Post-MVP Roadmap below.
 
 ### Phase 1: Project Foundation
 
@@ -402,39 +402,87 @@ Phase 5 must not include:
 - Local verification guide
 - Simple portfolio/demo explanation
 
-### Phase 7: User Auth and Public Notion OAuth Foundation
+### Post-MVP Roadmap
 
-Phase 7 starts post-MVP productization.
+Do not treat OAuth, file upload, PDF, or RAG as the first post-MVP priority.
 
-The goal is to allow each user to connect their own Notion workspace through Public Notion OAuth.
+Before adding file ingestion, RAG, or multi-user OAuth, PlanFlush needs stronger generated planning document quality, better spec versioning, and clearer version-based Notion publishing behavior.
 
-Do not start Phase 7 until the MVP Phase 5 Internal Integration flow works.
+#### Post-MVP 1: Spec Quality Improvement
 
-Phase 7 should focus on authentication and connection foundation, not advanced publishing UX.
+- Improve Generate Spec prompt quality
+- Strengthen planning document writing rules
+- Improve section-level quality for requirements, screen specification, policies, edge cases, data/API, assumptions, and acceptance criteria
+- Improve openQuestions quality
+- Improve pre-generation clarification questions
+- Add or document a spec quality checklist
+- Do not introduce file upload in this step
+
+#### Post-MVP 2: Spec Version / History
+
+- Regeneration should not casually overwrite previous specs
+- Create and manage spec versions such as v1, v2, v3
+- Add spec list/version UI when implemented
+- Show current version
+- Show published version
+- Allow viewing older versions
+- Diff comparison can be deferred
+
+#### Post-MVP 3: Notion Publishing Enhancement
+
+- Publish a specific spec version to Notion
+- Save/reflect spec version in publish logs
+- Ensure Notion document title and index page clearly show versions
+- Clarify republish policy:
+  - create new page
+  - update existing page
+- Existing page update should be treated as a separate careful enhancement
+- Keep MVP Internal Integration separate from future OAuth publishing
+
+#### Post-MVP 4: TXT File Upload
+
+- Upload `.txt` files
+- Attach files to projects
+- Extract text
+- Include text in Generate Spec context
+- Add text size/token handling
+
+#### Post-MVP 5: PDF Text Extraction
+
+- Upload PDF
+- Extract PDF text locally
+- Handle extraction failure
+- Add long document compression/summary strategy
+- Include extracted text in Generate Spec context
+
+#### Post-MVP 6: RAG / File Search Review
+
+- Review search-based document usage after TXT/PDF flows are stable
+- Do not implement RAG before basic file ingestion and text extraction are stable
+
+#### Post-MVP 7: User / Workspace / Notion OAuth
+
+This replaces the old immediate OAuth-first post-MVP priority.
 
 Suggested scope:
 
-- User authentication foundation
+- User login
 - User model
-- Session handling
-- Notion Public Integration setup guide
-- Connect Notion button
-- OAuth authorization URL generation
-- OAuth callback API
-- Exchange authorization code for Notion access token
-- Store user-specific Notion connection data
-- Encrypt or safely protect Notion tokens
-- Save connected Notion workspace metadata when available
-- Add Notion connection status UI
-- Add disconnect Notion behavior
-- Handle failed OAuth callback
-- Handle missing OAuth environment variables
+- Workspace model if needed
+- User-specific Notion connection
+- Public Notion OAuth
+- Secure token storage
+- User-specific Notion database selection/configuration
+- User-specific publishing behavior
 
 Suggested future models:
 
 ```text
 User
+Workspace
 NotionConnection
+NotionDatabaseConfig
+UserPublishLog
 ```
 
 Possible `NotionConnection` fields:
@@ -457,7 +505,7 @@ Do not store raw Notion tokens in plain text.
 
 Do not print Notion OAuth tokens in logs.
 
-Phase 7 environment variables may include:
+Post-MVP 7 environment variables may include:
 
 ```env
 NOTION_CLIENT_ID=""
@@ -466,32 +514,16 @@ NOTION_REDIRECT_URI=""
 TOKEN_ENCRYPTION_KEY=""
 ```
 
-### Phase 8: User-specific Notion Publishing UX
+#### Post-MVP 8: Production / Operations Hardening
 
-Phase 8 expands the Phase 7 OAuth foundation into a usable multi-user publishing experience.
-
-Suggested scope:
-
-- Let each user select or configure their own Notion database
-- Store user-specific Notion database ID
-- Validate selected Notion database properties
-- Publish specs using the connected user's Notion token
-- Save user-specific publish logs
-- Show user-specific Notion connection status before publishing
-- Show clear error when Notion is not connected
-- Show clear error when database access is missing
-- Show clear error when required Notion DB properties are missing
-- Add reconnect behavior when token or permission fails
-- Keep MVP Internal Integration path separate if still needed for local demo
-
-Possible future models:
-
-```text
-NotionDatabaseConfig
-UserPublishLog
-```
-
-Do not mix user-specific OAuth publishing with MVP Internal Integration logic without clear separation.
+- Production deployment
+- Production DB
+- Error logging
+- Token usage logging
+- AI cost tracking
+- Request limits
+- Backup
+- Env validation
 
 ---
 
@@ -538,15 +570,22 @@ NOTION_DATABASE_ID=""
 NOTION_PARENT_PAGE_ID=""
 ```
 
-Public Notion OAuth should be handled in Phase 7 or later after user authentication exists.
+Public Notion OAuth should be handled in Post-MVP 7 or later after user authentication exists.
 
-Future file expansion order after MVP:
+Post-MVP order after MVP:
 
 ```text
-txt upload
-→ PDF to txt local extraction
-→ PDF direct analysis / File Search / RAG review
+Spec Quality Improvement
+→ Spec Version / History
+→ Notion Publishing Enhancement
+→ TXT File Upload
+→ PDF Text Extraction
+→ RAG / File Search Review
+→ User / Workspace / Notion OAuth
+→ Production / Operations Hardening
 ```
+
+TXT/PDF work comes after Spec Quality Improvement, Spec Version / History, and Notion Publishing Enhancement.
 
 ---
 
@@ -623,7 +662,7 @@ app/api/specs/[id]/flush/route.ts
 app/api/projects/[id]/publish-logs/route.ts
 ```
 
-Future Phase 7+ API structure may include:
+Future Post-MVP 7+ API structure may include:
 
 ```text
 app/api/auth/[...]/route.ts
@@ -635,7 +674,7 @@ app/api/notion/databases/route.ts
 app/api/notion/database-config/route.ts
 ```
 
-Do not add Phase 7+ API routes during MVP unless explicitly requested.
+Do not add Post-MVP 7+ API routes during MVP unless explicitly requested.
 
 Phase 3 API distinction:
 
@@ -713,7 +752,7 @@ Spec edit screen
 Publish history
 ```
 
-Future Phase 7+ screens may include:
+Future Post-MVP 7+ screens may include:
 
 ```text
 /settings/notion
@@ -882,7 +921,7 @@ Additional `.env` handling rules:
 - It is acceptable to create or update `.env.example` with placeholder values only.
 - Never include real secrets, tokens, API keys, or database passwords in `.env.example`.
 
-Future Public OAuth security rules:
+Future Post-MVP 7+ Public OAuth security rules:
 
 - Do not store raw Notion OAuth tokens in plain text.
 - Encrypt or otherwise safely protect user-specific Notion tokens.
@@ -894,7 +933,7 @@ Future Public OAuth security rules:
 - Validate redirect URI consistency.
 - Handle disconnect/revoke scenarios clearly.
 
-Do not implement these OAuth rules during MVP unless Phase 7 explicitly starts.
+Do not implement these OAuth rules during MVP unless Post-MVP 7 explicitly starts.
 
 ---
 
@@ -978,9 +1017,9 @@ Do not create, edit, or inspect `.env` unless the user explicitly asks.
 
 Do not hardcode Notion secrets.
 
-### 14.2 Future Public OAuth Policy
+### 14.2 Future Post-MVP 7+ Public OAuth Policy
 
-Public Notion OAuth should be handled in Phase 7 or later.
+Public Notion OAuth should be handled in Post-MVP 7 or later.
 
 Public OAuth is for multi-user productization.
 
@@ -1222,9 +1261,9 @@ For Phase 5 Notion work:
 - Report required Notion DB properties.
 - Report required `.env` variable names only, not values.
 
-For Phase 7+ OAuth work:
+For Post-MVP 7+ OAuth work:
 
-- Confirm Phase 7 has explicitly started.
+- Confirm Post-MVP 7 has explicitly started.
 - Explain schema changes before applying migrations.
 - Treat token storage as sensitive.
 - Keep OAuth code server-side.
@@ -1430,7 +1469,7 @@ When discussing Notion:
 
 - Clearly separate MVP Internal Integration from future Public OAuth.
 - Say "Phase 5 = 내 Notion으로 MVP 발행 증명" when explaining simply.
-- Say "Phase 7+ = 사용자별 Notion 연결" when explaining future expansion.
+- Say "Post-MVP 7+ = 사용자별 Notion 연결" when explaining future expansion.
 - Do not imply Public OAuth is impossible for Codex.
 - Explain that Codex can implement OAuth code, but the user must create/configure the Notion Public Integration and secrets manually.
 
@@ -1479,8 +1518,14 @@ Project detail
 → Spec editing
 → Flush to Notion
 → Polish
-→ User Auth and Public Notion OAuth Foundation
-→ User-specific Notion Publishing UX
+→ Spec Quality Improvement
+→ Spec Version / History
+→ Notion Publishing Enhancement
+→ TXT File Upload
+→ PDF Text Extraction
+→ RAG / File Search Review
+→ User / Workspace / Notion OAuth
+→ Production / Operations Hardening
 ```
 
 ---
@@ -1669,7 +1714,7 @@ Phase 5 Notion Internal Integration 작업 히스토리에는 가능하면 아�
 - Publish log fields
 - Confirmation that Public OAuth was not implemented
 
-Phase 7+ Public OAuth 작업 히스토리에는 가능하면 아래를 포함하십시오.
+Post-MVP 7+ Public OAuth 작업 히스토리에는 가능하면 아래를 포함하십시오.
 
 - Auth-related model changes
 - Notion OAuth route paths
@@ -1937,11 +1982,11 @@ When explaining Notion work, clearly separate current and future scope:
 - Phase 5 Internal Integration
 
 나중:
-- Phase 7 Public OAuth
-- Phase 8 User-specific publishing
+- Post-MVP 3 Notion Publishing Enhancement
+- Post-MVP 7 User / Workspace / Notion OAuth
 ```
 
-Do not mix MVP and Public OAuth implementation plans.
+Do not mix MVP Internal Integration, version-based publishing enhancement, and Public OAuth implementation plans.
 
 ### For Long Tasks
 
@@ -2005,7 +2050,7 @@ For every task in this repository:
 
 1. Read `AGENTS.md`.
 2. Follow the current phase scope.
-3. Keep MVP Phase 1-6 separate from post-MVP Phase 7+.
+3. Keep MVP Phase 1-6 separate from Post-MVP work.
 4. Keep changes small.
 5. Do not hardcode secrets.
 6. Do not modify unrelated files.
@@ -2028,7 +2073,7 @@ For Phase 5 specifically:
 9. Do not publish automatically.
 10. Publish only when the user explicitly clicks `Notion 배포` or `Flush to Notion`.
 
-For Phase 7+ specifically:
+For Post-MVP 7+ specifically:
 
 1. Start only when explicitly requested.
 2. Implement user authentication before user-specific Notion publishing.
