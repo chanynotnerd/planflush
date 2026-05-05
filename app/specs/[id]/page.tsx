@@ -4,27 +4,14 @@ import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
+import { formatPlanningSpecItem } from "@/lib/ai/specFormatter";
+import type {
+  JsonObject,
+  JsonValue,
+  PlanningSpecContent,
+  PlanningSpecItem,
+} from "@/lib/ai/specSchema";
 import styles from "./page.module.css";
-
-type PlanningSpecContent = {
-  title: string;
-  summary: string;
-  background: string;
-  problem: string[];
-  goal: string[];
-  asIs: string[];
-  toBe: string[];
-  requirements: string[];
-  userFlow: string[];
-  screenSpecification: string[];
-  policiesAndEdgeCases: string[];
-  dataAndApi: string[];
-  confirmedFacts: string[];
-  assumptions: string[];
-  acceptanceCriteria: string[];
-  openQuestions: string[];
-  actionItems: string[];
-};
 
 type Spec = {
   id: number;
@@ -73,6 +60,8 @@ type SpecCategoryKey =
   | "requirements"
   | "design"
   | "execution";
+
+const OPEN_QUESTIONS_PREVIEW_LIMIT = 5;
 
 const STRING_SECTIONS: { key: StringSpecKey; label: string; multiline: boolean }[] = [
   { key: "title", label: "제목", multiline: false },
@@ -135,6 +124,111 @@ const SPEC_CATEGORIES: {
   },
 ];
 
+const CHIP_FIELD_KEYS = [
+  "priority",
+  "owner",
+  "type",
+  "method",
+  "endpoint",
+  "screen",
+  "step",
+  "actor",
+];
+const FIELD_LABELS: Record<string, string> = {
+  title: "제목",
+  description: "설명",
+  priority: "우선순위",
+  owner: "담당",
+  type: "유형",
+  method: "Method",
+  endpoint: "Endpoint",
+  screen: "화면",
+  step: "단계",
+  actor: "주체",
+  action: "동작",
+  condition: "조건",
+  result: "결과",
+  question: "질문",
+  reason: "이유",
+  impact: "영향",
+  acceptanceCriteria: "인수 조건",
+  notes: "메모",
+};
+
+const READABLE_FIELD_LABELS: Record<string, string> = {
+  id: "ID",
+  title: "제목",
+  description: "설명",
+  priority: "우선순위",
+  owner: "담당",
+  type: "유형",
+  method: "Method",
+  endpoint: "Endpoint",
+  screen: "화면",
+  step: "단계",
+  actor: "사용자/주체",
+  action: "동작",
+  condition: "조건",
+  result: "결과",
+  question: "질문",
+  reason: "이유",
+  impact: "영향",
+  asIs: "AS-IS",
+  toBe: "TO-BE",
+  dependsOn: "선행 작업",
+  verification: "검증 기준",
+  expectedBehavior: "기대 동작",
+  validation: "검증",
+  validationRules: "검증 규칙",
+  errorCases: "오류 케이스",
+  requestFields: "요청 필드",
+  responseFields: "응답 필드",
+  dataFields: "데이터 필드",
+  acceptanceCriteria: "인수 조건",
+  notes: "참고",
+  policy: "정책",
+  components: "컴포넌트",
+  behavior: "동작",
+  emptyState: "빈 상태",
+  loadingState: "로딩 상태",
+  errorState: "오류 상태",
+  edgeCases: "예외 케이스",
+  name: "이름",
+};
+
+const ENUM_VALUE_LABELS: Record<string, string> = {
+  api: "API",
+  data: "데이터",
+  screen: "화면",
+  policy: "정책",
+  requirement: "요구사항",
+  qa: "QA",
+  fe: "FE",
+  be: "BE",
+  db: "DB",
+  pm: "PM",
+  high: "높음",
+  medium: "보통",
+  low: "낮음",
+};
+
+const HTTP_METHOD_LABELS = new Set([
+  "get",
+  "post",
+  "put",
+  "patch",
+  "delete",
+  "head",
+  "options",
+]);
+
+const ENUM_DISPLAY_FIELD_KEYS = new Set([
+  "type",
+  "owner",
+  "priority",
+  "method",
+]);
+
 const EMPTY_SPEC_CONTENT: PlanningSpecContent = {
   title: "",
   summary: "",
@@ -192,13 +286,24 @@ function formatDate(value: string) {
   return new Date(value).toLocaleString("ko-KR");
 }
 
-function arrayToTextarea(value: string[]) {
-  return value.join("\n");
+function arrayToTextarea(value: PlanningSpecItem[]) {
+  return value
+    .map((item) => formatPlanningSpecItem(item))
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function textareaToArray(value: string) {
-  return value
-    .split(/\r?\n/)
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return [];
+  }
+
+  const separator = /\n\s*\n/.test(normalized) ? /\n\s*\n/ : /\r?\n/;
+
+  return normalized
+    .split(separator)
     .map((item) => item.trim())
     .filter(Boolean);
 }
@@ -247,6 +352,301 @@ function getArraySection(key: SpecSectionKey) {
   return ARRAY_SECTIONS.find((section) => section.key === key);
 }
 
+function isSpecObject(value: PlanningSpecItem): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getFieldLabel(key: string) {
+  return (
+    READABLE_FIELD_LABELS[key] ??
+    FIELD_LABELS[key] ??
+    key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (value) => value.toUpperCase())
+  );
+}
+
+function formatJsonValue(value: JsonValue): string {
+  if (value === null) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(formatJsonValue).filter(Boolean).join(", ");
+  }
+
+  return Object.entries(value)
+    .map(([key, item]) => {
+      const text = formatJsonValue(item);
+      return text ? `${getFieldLabel(key)}: ${text}` : "";
+    })
+    .filter(Boolean)
+    .join(" / ");
+}
+
+function formatSingleEnumLikeValue(key: string, value: string) {
+  const text = value.trim();
+  const normalized = text.toLowerCase();
+
+  if (key === "method" && HTTP_METHOD_LABELS.has(normalized)) {
+    return normalized.toUpperCase();
+  }
+
+  return ENUM_VALUE_LABELS[normalized] ?? text;
+}
+
+function formatEnumLikeValue(key: string, value: string) {
+  const text = value.trim();
+
+  if (!ENUM_DISPLAY_FIELD_KEYS.has(key)) {
+    return formatSingleEnumLikeValue(key, text);
+  }
+
+  const slashParts = text.split("/").map((part) => part.trim());
+
+  if (slashParts.length > 1 && slashParts.every(Boolean)) {
+    return slashParts
+      .map((part) => formatSingleEnumLikeValue(key, part))
+      .join(" / ");
+  }
+
+  return formatSingleEnumLikeValue(key, text);
+}
+
+function formatDisplayValue(key: string, value: JsonValue): string {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) =>
+        typeof item === "string"
+          ? formatEnumLikeValue(key, item)
+          : formatJsonValue(item),
+      )
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  if (typeof value === "string") {
+    return formatEnumLikeValue(key, value);
+  }
+
+  return formatJsonValue(value);
+}
+
+function getObjectTitle(item: JsonObject) {
+  const preferred = [
+    item.title,
+    item.question,
+    item.description,
+    item.action,
+    item.screen,
+    item.endpoint,
+  ];
+
+  for (const value of preferred) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return "세부 항목";
+}
+
+function getFlowStepTitle(item: JsonObject, index: number) {
+  const preferred = [item.title, item.action, item.description, item.result];
+
+  for (const value of preferred) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return `${index + 1}단계`;
+}
+
+function getQuestionTitle(item: JsonObject) {
+  const preferred = [item.question, item.title, item.description];
+
+  for (const value of preferred) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return "확인 필요 사항";
+}
+
+function getObjectChipEntries(item: JsonObject) {
+  return CHIP_FIELD_KEYS.flatMap((key) => {
+    const value = item[key];
+    const text = value === undefined ? "" : formatDisplayValue(key, value);
+
+    return text ? [{ key, label: getFieldLabel(key), text }] : [];
+  });
+}
+
+function getObjectDetailEntries(item: JsonObject) {
+  return Object.entries(item)
+    .filter(([key]) => key !== "title" && !CHIP_FIELD_KEYS.includes(key))
+    .map(([key, value]) => ({
+      key,
+      label: getFieldLabel(key),
+      text: formatDisplayValue(key, value),
+    }))
+    .filter((entry) => entry.text);
+}
+
+function renderPlanningSpecItem(
+  item: PlanningSpecItem,
+  index: number,
+  sectionKey: ArraySpecKey,
+) {
+  if (sectionKey === "userFlow") {
+    if (!isSpecObject(item)) {
+      return (
+        <li className={styles.flowItem} key={`${index}-${item}`}>
+          <span className={styles.flowStepNumber}>{index + 1}</span>
+          <p className={styles.flowStepText}>{item}</p>
+        </li>
+      );
+    }
+
+    const chips = getObjectChipEntries(item);
+    const details = getObjectDetailEntries(item);
+
+    return (
+      <li className={styles.flowItem} key={`${index}-${getFlowStepTitle(item, index)}`}>
+        <span className={styles.flowStepNumber}>{index + 1}</span>
+        <div className={styles.flowStepContent}>
+          <h3 className={styles.objectItemTitle}>{getFlowStepTitle(item, index)}</h3>
+          {chips.length > 0 ? (
+            <div className={styles.chipRow}>
+              {chips.map((chip) => (
+                <span className={styles.itemChip} key={chip.key}>
+                  {chip.label}: {chip.text}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {details.length > 0 ? (
+            <dl className={styles.fieldList}>
+              {details.map((entry) => (
+                <div className={styles.fieldRow} key={entry.key}>
+                  <dt className={styles.fieldLabel}>{entry.label}</dt>
+                  <dd className={styles.fieldValue}>{entry.text}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+        </div>
+      </li>
+    );
+  }
+
+  if (sectionKey === "openQuestions") {
+    if (!isSpecObject(item)) {
+      return (
+        <li className={styles.questionItem} key={`${index}-${item}`}>
+          <span className={styles.questionBadge}>Q</span>
+          <p className={styles.questionText}>{item}</p>
+        </li>
+      );
+    }
+
+    const chips = getObjectChipEntries(item);
+    const details = getObjectDetailEntries(item);
+
+    return (
+      <li className={styles.questionItem} key={`${index}-${getQuestionTitle(item)}`}>
+        <span className={styles.questionBadge}>Q</span>
+        <div className={styles.questionContent}>
+          <h3 className={styles.objectItemTitle}>{getQuestionTitle(item)}</h3>
+          {chips.length > 0 ? (
+            <div className={styles.chipRow}>
+              {chips.map((chip) => (
+                <span className={styles.itemChip} key={chip.key}>
+                  {chip.label}: {chip.text}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {details.length > 0 ? (
+            <dl className={styles.fieldList}>
+              {details.map((entry) => (
+                <div className={styles.fieldRow} key={entry.key}>
+                  <dt className={styles.fieldLabel}>{entry.label}</dt>
+                  <dd className={styles.fieldValue}>{entry.text}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+        </div>
+      </li>
+    );
+  }
+
+  if (!isSpecObject(item)) {
+    return (
+      <li className={styles.bulletItem} key={`${index}-${item}`}>
+        {item}
+      </li>
+    );
+  }
+
+  const title = getObjectTitle(item);
+  const chips = getObjectChipEntries(item);
+  const details = getObjectDetailEntries(item);
+
+  return (
+    <li className={styles.objectItem} key={`${index}-${title}`}>
+      <div className={styles.objectItemHeader}>
+        <h3 className={styles.objectItemTitle}>{title}</h3>
+        {chips.length > 0 ? (
+          <div className={styles.chipRow}>
+            {chips.map((chip) => (
+              <span className={styles.itemChip} key={chip.key}>
+                {chip.label}: {chip.text}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {details.length > 0 ? (
+        <dl className={styles.fieldList}>
+          {details.map((entry) => (
+            <div className={styles.fieldRow} key={entry.key}>
+              <dt className={styles.fieldLabel}>{entry.label}</dt>
+              <dd className={styles.fieldValue}>{entry.text}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+    </li>
+  );
+}
+
+function getVisibleSectionItems({
+  items,
+  isExpanded,
+  sectionKey,
+}: {
+  items: PlanningSpecItem[];
+  isExpanded: boolean;
+  sectionKey: ArraySpecKey;
+}) {
+  if (sectionKey !== "openQuestions" || isExpanded) {
+    return items;
+  }
+
+  return items.slice(0, OPEN_QUESTIONS_PREVIEW_LIMIT);
+}
+
 function ChevronIcon({ isCollapsed }: { isCollapsed: boolean }) {
   return (
     <svg
@@ -287,6 +687,8 @@ export default function SpecEditPage({ params }: PageProps) {
   const [collapsedSections, setCollapsedSections] = useState<Set<SpecSectionKey>>(
     () => new Set(),
   );
+  const [isEditing, setIsEditing] = useState(false);
+  const [isOpenQuestionsExpanded, setIsOpenQuestionsExpanded] = useState(false);
   const [selectedCategoryKey, setSelectedCategoryKey] =
     useState<SpecCategoryKey>("overview");
 
@@ -413,6 +815,17 @@ export default function SpecEditPage({ params }: PageProps) {
     });
   }
 
+  function handleCancelEdit() {
+    if (spec) {
+      setDraft(spec.contentJson);
+      setArrayDrafts(createArrayDrafts(spec.contentJson));
+    }
+
+    setSaveError("");
+    setSavedMessage("");
+    setIsEditing(false);
+  }
+
   async function handleSave() {
     setIsSaving(true);
     setSaveError("");
@@ -449,6 +862,7 @@ export default function SpecEditPage({ params }: PageProps) {
       }));
       setDraft(data.contentJson);
       setArrayDrafts(createArrayDrafts(data.contentJson));
+      setIsEditing(false);
       showToast("기획서 저장 완료되었습니다.", "success");
       setSavedMessage("기획서가 저장되었습니다.");
     } catch {
@@ -627,10 +1041,42 @@ export default function SpecEditPage({ params }: PageProps) {
 
                 <section className={styles.editorPanel}>
                   <div className={`pf-card pf-card-pad ${styles.categoryHeader}`}>
-                    <h2 className={styles.categoryTitle}>{selectedCategory.label}</h2>
-                    <p className={styles.categoryDescription}>
-                      {selectedCategory.description}
-                    </p>
+                    <div>
+                      <h2 className={styles.categoryTitle}>{selectedCategory.label}</h2>
+                      <p className={styles.categoryDescription}>
+                        {selectedCategory.description}
+                      </p>
+                    </div>
+                    <div className={styles.categoryActions}>
+                      {isEditing ? (
+                        <>
+                          <button
+                            className={`pf-btn-outline ${styles.categoryActionButton}`}
+                            type="button"
+                            onClick={handleCancelEdit}
+                            disabled={isSaving}
+                          >
+                            취소
+                          </button>
+                          <button
+                            className="pf-btn-primary"
+                            type="button"
+                            onClick={() => void handleSave()}
+                            disabled={isSaving || isPublishing}
+                          >
+                            {isSaving ? "저장 중..." : "저장"}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          className={`pf-btn-outline ${styles.categoryActionButton}`}
+                          type="button"
+                          onClick={() => setIsEditing(true)}
+                        >
+                          수정
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div className={styles.sectionGrid}>
@@ -667,25 +1113,35 @@ export default function SpecEditPage({ params }: PageProps) {
                             </button>
                           </div>
 
-                          <div id={`${section.key}-body`} hidden={isCollapsed}>
-                            {section.multiline ? (
-                              <textarea
-                                id={section.key}
-                                className={`pf-textarea ${styles.sectionTextarea}`}
-                                value={draft[section.key]}
-                                onChange={(event) =>
-                                  updateStringSection(section.key, event.target.value)
-                                }
-                              />
+                          <div
+                            className={styles.sectionBody}
+                            id={`${section.key}-body`}
+                            hidden={isCollapsed}
+                          >
+                            {isEditing ? (
+                              section.multiline ? (
+                                <textarea
+                                  id={section.key}
+                                  className={`pf-textarea ${styles.sectionTextarea}`}
+                                  value={draft[section.key]}
+                                  onChange={(event) =>
+                                    updateStringSection(section.key, event.target.value)
+                                  }
+                                />
+                              ) : (
+                                <input
+                                  id={section.key}
+                                  className="pf-input"
+                                  value={draft[section.key]}
+                                  onChange={(event) =>
+                                    updateStringSection(section.key, event.target.value)
+                                  }
+                                />
+                              )
                             ) : (
-                              <input
-                                id={section.key}
-                                className="pf-input"
-                                value={draft[section.key]}
-                                onChange={(event) =>
-                                  updateStringSection(section.key, event.target.value)
-                                }
-                              />
+                              <p className={styles.documentText}>
+                                {draft[section.key] || "내용이 없습니다."}
+                              </p>
                             )}
                           </div>
                         </div>
@@ -700,6 +1156,16 @@ export default function SpecEditPage({ params }: PageProps) {
                       }
 
                       const isCollapsed = collapsedSections.has(section.key);
+                      const sectionItems = draft[section.key];
+                      const visibleItems = getVisibleSectionItems({
+                        items: sectionItems,
+                        isExpanded: isOpenQuestionsExpanded,
+                        sectionKey: section.key,
+                      });
+                      const hiddenOpenQuestionsCount =
+                        section.key === "openQuestions"
+                          ? sectionItems.length - visibleItems.length
+                          : 0;
 
                       return (
                         <div
@@ -725,7 +1191,12 @@ export default function SpecEditPage({ params }: PageProps) {
                             </button>
                           </div>
 
-                          <div id={`${section.key}-body`} hidden={isCollapsed}>
+                          <div
+                            className={styles.sectionBody}
+                            id={`${section.key}-body`}
+                            hidden={isCollapsed}
+                          >
+                            {isEditing ? (
                             <textarea
                               id={section.key}
                               className={`pf-textarea ${styles.sectionTextarea}`}
@@ -735,6 +1206,36 @@ export default function SpecEditPage({ params }: PageProps) {
                               }
                               placeholder="한 줄에 하나씩 입력해 주십시오."
                             />
+                            ) : sectionItems.length > 0 ? (
+                              <>
+                                <ul className={styles.itemList}>
+                                  {visibleItems.map((item, index) =>
+                                    renderPlanningSpecItem(item, index, section.key),
+                                  )}
+                                </ul>
+                                {hiddenOpenQuestionsCount > 0 ? (
+                                  <button
+                                    className={styles.showMoreButton}
+                                    type="button"
+                                    onClick={() => setIsOpenQuestionsExpanded(true)}
+                                  >
+                                    더보기 {hiddenOpenQuestionsCount}개
+                                  </button>
+                                ) : section.key === "openQuestions" &&
+                                  isOpenQuestionsExpanded &&
+                                  sectionItems.length > OPEN_QUESTIONS_PREVIEW_LIMIT ? (
+                                  <button
+                                    className={styles.showMoreButton}
+                                    type="button"
+                                    onClick={() => setIsOpenQuestionsExpanded(false)}
+                                  >
+                                    접기
+                                  </button>
+                                ) : null}
+                              </>
+                            ) : (
+                              <p className={styles.emptySection}>내용이 없습니다.</p>
+                            )}
                           </div>
                         </div>
                       );
@@ -743,6 +1244,7 @@ export default function SpecEditPage({ params }: PageProps) {
                 </section>
               </div>
 
+              {false && isEditing ? (
               <div className={styles.stickySaveBar}>
                 <p className={styles.saveHint}>
                   목록형 섹션은 Enter로 줄을 나누면 별도 항목으로 저장됩니다.
@@ -756,6 +1258,7 @@ export default function SpecEditPage({ params }: PageProps) {
                   {isSaving ? "저장 중..." : "기획서 저장"}
                 </button>
               </div>
+              ) : null}
             </form>
           ) : null}
         </div>

@@ -4,6 +4,16 @@ import Link from "next/link";
 import { FormEvent, use, useEffect, useState } from "react";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
+import {
+  formatPlanningSpecItem,
+  getPlanningSpecItemTitle,
+} from "@/lib/ai/specFormatter";
+import type {
+  JsonObject,
+  JsonValue,
+  PlanningSpecContent,
+  PlanningSpecItem,
+} from "@/lib/ai/specSchema";
 import styles from "./page.module.css";
 
 type Project = {
@@ -20,26 +30,6 @@ type Message = {
   role: "user" | "assistant" | "system";
   content: string;
   createdAt: string;
-};
-
-type PlanningSpecContent = {
-  title: string;
-  summary: string;
-  background: string;
-  problem: string[];
-  goal: string[];
-  asIs: string[];
-  toBe: string[];
-  requirements: string[];
-  userFlow: string[];
-  screenSpecification: string[];
-  policiesAndEdgeCases: string[];
-  dataAndApi: string[];
-  confirmedFacts: string[];
-  assumptions: string[];
-  acceptanceCriteria: string[];
-  openQuestions: string[];
-  actionItems: string[];
 };
 
 type Spec = {
@@ -135,6 +125,80 @@ function sanitizeMessageContent(value: string) {
     .replace(/`([^`]+)`/g, "$1")
     .replace(/^\s{0,3}#{1,6}\s+/gm, "")
     .replace(/^\s{0,3}[-*]\s+/gm, "- ");
+}
+
+function getSpecPreviewText(item: PlanningSpecItem) {
+  return sanitizeMessageContent(getPlanningSpecItemTitle(item) || formatPlanningSpecItem(item));
+}
+
+function getSpecPreviewKey(item: PlanningSpecItem, index: number) {
+  return `${index}-${getSpecPreviewText(item)}`;
+}
+
+function isSpecObject(item: PlanningSpecItem): item is JsonObject {
+  return typeof item === "object" && item !== null && !Array.isArray(item);
+}
+
+function stringifyPreviewValue(value: JsonValue | undefined): string {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return sanitizeMessageContent(value.trim());
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(stringifyPreviewValue).filter(Boolean).join(", ");
+  }
+
+  return formatPlanningSpecItem(value);
+}
+
+function formatActionMeta(value: string) {
+  const text = value.trim();
+  const labels: Record<string, string> = {
+    api: "API",
+    data: "데이터",
+    policy: "정책",
+    design: "Design",
+    ux: "UX",
+    fe: "FE",
+    be: "BE",
+    db: "DB",
+    qa: "QA",
+    pm: "PM",
+  };
+
+  const slashParts = text.split("/").map((part) => part.trim());
+
+  if (slashParts.length > 1 && slashParts.every(Boolean)) {
+    return slashParts
+      .map((part) => labels[part.toLowerCase()] ?? part)
+      .join("/");
+  }
+
+  return labels[text.toLowerCase()] ?? text;
+}
+
+function getActionItemPreviewText(item: PlanningSpecItem) {
+  if (!isSpecObject(item)) {
+    return getSpecPreviewText(item);
+  }
+
+  const owner = stringifyPreviewValue(item.owner);
+  const type = stringifyPreviewValue(item.type);
+  const title =
+    stringifyPreviewValue(item.title) ||
+    stringifyPreviewValue(item.description) ||
+    getSpecPreviewText(item);
+  const meta = [owner, type].filter(Boolean).map(formatActionMeta).join(" / ");
+
+  return sanitizeMessageContent(meta ? `[${meta}] ${title}` : title);
 }
 
 function getLatestPublishLog(spec: Spec | null) {
@@ -472,8 +536,10 @@ export default function ProjectDetailPage({ params }: PageProps) {
                         목표 {generatedSpec.contentJson.goal.length}개
                       </h3>
                       <ul className={styles.specPreviewList}>
-                        {generatedSpec.contentJson.goal.map((item) => (
-                          <li key={item}>{item}</li>
+                        {generatedSpec.contentJson.goal.map((item, index) => (
+                          <li key={getSpecPreviewKey(item, index)}>
+                            {getSpecPreviewText(item)}
+                          </li>
                         ))}
                       </ul>
                     </div>
@@ -482,20 +548,32 @@ export default function ProjectDetailPage({ params }: PageProps) {
                         요구사항 {generatedSpec.contentJson.requirements.length}개
                       </h3>
                       <ul className={styles.specPreviewList}>
-                        {generatedSpec.contentJson.requirements.map((item) => (
-                          <li key={item}>{item}</li>
+                        {generatedSpec.contentJson.requirements.map((item, index) => (
+                          <li key={getSpecPreviewKey(item, index)}>
+                            {getSpecPreviewText(item)}
+                          </li>
                         ))}
                       </ul>
                     </div>
                     <div className={styles.specPreviewSection}>
                       <h3 className={styles.specPreviewSectionTitle}>
-                        미확정 사항 {generatedSpec.contentJson.openQuestions.length}개
+                        액션 아이템 {generatedSpec.contentJson.actionItems.length}개
                       </h3>
-                      <ul className={styles.specPreviewList}>
-                        {generatedSpec.contentJson.openQuestions.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
+                      {generatedSpec.contentJson.actionItems.length > 0 ? (
+                        <ul className={styles.specPreviewList}>
+                          {generatedSpec.contentJson.actionItems
+                            .slice(0, 5)
+                            .map((item, index) => (
+                              <li key={getSpecPreviewKey(item, index)}>
+                                {getActionItemPreviewText(item)}
+                              </li>
+                            ))}
+                        </ul>
+                      ) : (
+                        <p className="pf-status">
+                          아직 정리된 액션 아이템이 없습니다.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </section>

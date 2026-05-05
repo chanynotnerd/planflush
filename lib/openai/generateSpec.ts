@@ -48,6 +48,10 @@ function getOutputText(responseBody: OpenAIResponseBody) {
   );
 }
 
+function getSpecModel() {
+  return process.env.OPENAI_SPEC_MODEL || process.env.OPENAI_MODEL || "gpt-5.4";
+}
+
 export async function generatePlanningSpecFromMessages({
   apiKey,
   projectName,
@@ -66,7 +70,7 @@ export async function generatePlanningSpecFromMessages({
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      model: getSpecModel(),
       max_output_tokens: 4000,
       input: [
         {
@@ -96,7 +100,7 @@ export async function generatePlanningSpecFromMessages({
         format: {
           type: "json_schema",
           name: "planflush_planning_spec",
-          strict: true,
+          strict: false,
           schema: PLANNING_SPEC_JSON_SCHEMA,
         },
       },

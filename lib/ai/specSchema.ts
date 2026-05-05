@@ -4,24 +4,31 @@ export type SourceMessage = {
   createdAt: Date;
 };
 
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
+export type JsonObject = {
+  [key: string]: JsonValue;
+};
+export type PlanningSpecItem = string | JsonObject;
+
 export type PlanningSpecContent = {
   title: string;
   summary: string;
   background: string;
-  problem: string[];
-  goal: string[];
-  asIs: string[];
-  toBe: string[];
-  requirements: string[];
-  userFlow: string[];
-  screenSpecification: string[];
-  policiesAndEdgeCases: string[];
-  dataAndApi: string[];
-  confirmedFacts: string[];
-  assumptions: string[];
-  acceptanceCriteria: string[];
-  openQuestions: string[];
-  actionItems: string[];
+  problem: PlanningSpecItem[];
+  goal: PlanningSpecItem[];
+  asIs: PlanningSpecItem[];
+  toBe: PlanningSpecItem[];
+  requirements: PlanningSpecItem[];
+  userFlow: PlanningSpecItem[];
+  screenSpecification: PlanningSpecItem[];
+  policiesAndEdgeCases: PlanningSpecItem[];
+  dataAndApi: PlanningSpecItem[];
+  confirmedFacts: PlanningSpecItem[];
+  assumptions: PlanningSpecItem[];
+  acceptanceCriteria: PlanningSpecItem[];
+  openQuestions: PlanningSpecItem[];
+  actionItems: PlanningSpecItem[];
 };
 
 export const STRING_SPEC_KEYS = ["title", "summary", "background"] as const;
@@ -48,6 +55,16 @@ export const PLANNING_SPEC_KEYS = [
   ...ARRAY_SPEC_KEYS,
 ] as const;
 
+const SPEC_ITEM_SCHEMA = {
+  anyOf: [
+    { type: "string" },
+    {
+      type: "object",
+      additionalProperties: true,
+    },
+  ],
+} as const;
+
 export const PLANNING_SPEC_JSON_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -56,25 +73,54 @@ export const PLANNING_SPEC_JSON_SCHEMA = {
     title: { type: "string" },
     summary: { type: "string" },
     background: { type: "string" },
-    problem: { type: "array", items: { type: "string" } },
-    goal: { type: "array", items: { type: "string" } },
-    asIs: { type: "array", items: { type: "string" } },
-    toBe: { type: "array", items: { type: "string" } },
-    requirements: { type: "array", items: { type: "string" } },
-    userFlow: { type: "array", items: { type: "string" } },
-    screenSpecification: { type: "array", items: { type: "string" } },
-    policiesAndEdgeCases: { type: "array", items: { type: "string" } },
-    dataAndApi: { type: "array", items: { type: "string" } },
-    confirmedFacts: { type: "array", items: { type: "string" } },
-    assumptions: { type: "array", items: { type: "string" } },
-    acceptanceCriteria: { type: "array", items: { type: "string" } },
-    openQuestions: { type: "array", items: { type: "string" } },
-    actionItems: { type: "array", items: { type: "string" } },
+    problem: { type: "array", items: SPEC_ITEM_SCHEMA },
+    goal: { type: "array", items: SPEC_ITEM_SCHEMA },
+    asIs: { type: "array", items: SPEC_ITEM_SCHEMA },
+    toBe: { type: "array", items: SPEC_ITEM_SCHEMA },
+    requirements: { type: "array", items: SPEC_ITEM_SCHEMA },
+    userFlow: { type: "array", items: SPEC_ITEM_SCHEMA },
+    screenSpecification: { type: "array", items: SPEC_ITEM_SCHEMA },
+    policiesAndEdgeCases: { type: "array", items: SPEC_ITEM_SCHEMA },
+    dataAndApi: { type: "array", items: SPEC_ITEM_SCHEMA },
+    confirmedFacts: { type: "array", items: SPEC_ITEM_SCHEMA },
+    assumptions: { type: "array", items: SPEC_ITEM_SCHEMA },
+    acceptanceCriteria: { type: "array", items: SPEC_ITEM_SCHEMA },
+    openQuestions: { type: "array", items: SPEC_ITEM_SCHEMA },
+    actionItems: { type: "array", items: SPEC_ITEM_SCHEMA },
   },
 } as const;
 
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
+export function isJsonObject(value: unknown): value is JsonObject {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isJsonValue(value: unknown): value is JsonValue {
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.every(isJsonValue);
+  }
+
+  if (isJsonObject(value)) {
+    return Object.values(value).every(isJsonValue);
+  }
+
+  return false;
+}
+
+function isPlanningSpecItem(value: unknown): value is PlanningSpecItem {
+  return typeof value === "string" || (isJsonObject(value) && isJsonValue(value));
+}
+
+function isPlanningSpecItemArray(value: unknown): value is PlanningSpecItem[] {
+  return Array.isArray(value) && value.every(isPlanningSpecItem);
 }
 
 export function isPlanningSpecContent(value: unknown): value is PlanningSpecContent {
@@ -86,6 +132,6 @@ export function isPlanningSpecContent(value: unknown): value is PlanningSpecCont
 
   return (
     STRING_SPEC_KEYS.every((key) => typeof spec[key] === "string") &&
-    ARRAY_SPEC_KEYS.every((key) => isStringArray(spec[key]))
+    ARRAY_SPEC_KEYS.every((key) => isPlanningSpecItemArray(spec[key]))
   );
 }

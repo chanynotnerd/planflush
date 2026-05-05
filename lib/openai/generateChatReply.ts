@@ -32,6 +32,10 @@ function getOutputText(responseBody: OpenAIResponseBody) {
   );
 }
 
+function getChatModel() {
+  return process.env.OPENAI_CHAT_MODEL || process.env.OPENAI_MODEL || "gpt-5.4-mini";
+}
+
 export async function generateProjectChatReply({
   apiKey,
   projectName,
@@ -50,7 +54,7 @@ export async function generateProjectChatReply({
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      model: getChatModel(),
       max_output_tokens: 800,
       input: [
         {

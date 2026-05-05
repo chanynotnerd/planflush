@@ -12,7 +12,7 @@ type Project = {
   description: string | null;
   createdAt: string;
   updatedAt: string;
-  successfulPublishCount: number;
+  successfulPublishCount?: number | null;
 };
 
 function localizeApiMessage(message?: string) {
@@ -32,6 +32,12 @@ function formatDate(value: string) {
   return new Date(value).toLocaleString("ko-KR");
 }
 
+function getSafePublishCount(value: unknown) {
+  const count = Number(value);
+
+  return Number.isFinite(count) && count > 0 ? count : 0;
+}
+
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,7 +53,7 @@ export default function ProjectsPage() {
   const latestProject = sortedProjects[0] ?? null;
   const latestProjectName = latestProject ? latestProject.name : "아직 없음";
   const totalSuccessfulPublishCount = projects.reduce(
-    (sum, project) => sum + project.successfulPublishCount,
+    (sum, project) => sum + getSafePublishCount(project.successfulPublishCount),
     0,
   );
 
@@ -313,40 +319,46 @@ export default function ProjectsPage() {
 
             {!isLoading && !error && projects.length > 0 ? (
               <div className={styles.projectList}>
-                {sortedProjects.map((project) => (
-                  <Link
-                    key={project.id}
-                    href={`/projects/${project.id}`}
-                    className={styles.projectItem}
-                  >
-                    <div className={styles.projectMain}>
-                      <div className={styles.projectTitleRow}>
-                        <h3 className={styles.projectName}>{project.name}</h3>
-                      </div>
-                      <p
-                        className={`pf-page-copy ${styles.projectDescription}`}
-                      >
-                        {project.description ||
-                          "프로젝트 설명이 아직 없습니다."}
-                      </p>
-                      <p className={styles.projectMeta}>
-                        최근 수정 {formatDate(project.updatedAt)}
-                      </p>
-                      {project.successfulPublishCount > 0 ? (
-                        <span className={styles.publishBadge}>
-                          Notion 배포 완료 {project.successfulPublishCount}건
-                        </span>
-                      ) : (
-                        <span
-                          className={`${styles.publishBadge} ${styles.publishBadgeNeutral}`}
+                {sortedProjects.map((project) => {
+                  const successfulPublishCount = getSafePublishCount(
+                    project.successfulPublishCount,
+                  );
+
+                  return (
+                    <Link
+                      key={project.id}
+                      href={`/projects/${project.id}`}
+                      className={styles.projectItem}
+                    >
+                      <div className={styles.projectMain}>
+                        <div className={styles.projectTitleRow}>
+                          <h3 className={styles.projectName}>{project.name}</h3>
+                        </div>
+                        <p
+                          className={`pf-page-copy ${styles.projectDescription}`}
                         >
-                          Notion 미배포
-                        </span>
-                      )}
-                    </div>
-                    <span className={styles.projectArrow}>›</span>
-                  </Link>
-                ))}
+                          {project.description ||
+                            "프로젝트 설명이 아직 없습니다."}
+                        </p>
+                        <p className={styles.projectMeta}>
+                          최근 수정 {formatDate(project.updatedAt)}
+                        </p>
+                        {successfulPublishCount > 0 ? (
+                          <span className={styles.publishBadge}>
+                            Notion 배포 완료 {successfulPublishCount}건
+                          </span>
+                        ) : (
+                          <span
+                            className={`${styles.publishBadge} ${styles.publishBadgeNeutral}`}
+                          >
+                            Notion 미배포
+                          </span>
+                        )}
+                      </div>
+                      <span className={styles.projectArrow}>›</span>
+                    </Link>
+                  );
+                })}
               </div>
             ) : null}
           </section>

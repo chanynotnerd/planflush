@@ -1,7 +1,11 @@
 import {
   ARRAY_SPEC_KEYS,
+  isJsonObject,
   isPlanningSpecContent,
+  JsonObject,
+  JsonValue,
   PlanningSpecContent,
+  PlanningSpecItem,
   PLANNING_SPEC_KEYS,
   STRING_SPEC_KEYS,
 } from "@/lib/ai/specSchema";
@@ -27,16 +31,135 @@ function normalizeString(value: unknown) {
   return value.trim();
 }
 
-function normalizeStringArray(value: unknown) {
+function normalizeJsonValue(value: unknown): JsonValue | undefined {
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    const items = value
+      .map((item) => normalizeJsonValue(item))
+      .filter((item): item is JsonValue => item !== undefined);
+
+    return items;
+  }
+
+  if (isJsonObject(value)) {
+    const normalized: JsonObject = {};
+
+    for (const [key, item] of Object.entries(value)) {
+      const normalizedKey = key.trim();
+
+      if (!normalizedKey) {
+        continue;
+      }
+
+      const normalizedValue = normalizeJsonValue(item);
+
+      if (normalizedValue !== undefined) {
+        normalized[normalizedKey] = normalizedValue;
+      }
+    }
+
+    return normalized;
+  }
+
+  return undefined;
+}
+
+function isEmptyJsonObject(value: JsonObject) {
+  return Object.keys(value).length === 0;
+}
+
+function normalizePlanningSpecItem(value: unknown): PlanningSpecItem | null {
+  if (typeof value === "string") {
+    const text = value.trim();
+    return text ? text : null;
+  }
+
+  if (isJsonObject(value)) {
+    const normalized = normalizeJsonValue(value);
+
+    if (!isJsonObject(normalized) || isEmptyJsonObject(normalized)) {
+      return null;
+    }
+
+    return normalized;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return null;
+}
+
+function normalizeSpecItemArray(value: unknown) {
   if (value === undefined || value === null) {
     return [];
   }
 
-  if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
+  if (!Array.isArray(value)) {
     throw new InvalidSpecFormatError();
   }
 
-  return value.map((item) => item.trim()).filter(Boolean);
+  return value
+    .map((item) => normalizePlanningSpecItem(item))
+    .filter((item): item is PlanningSpecItem => item !== null);
+}
+
+function getQuestionText(item: PlanningSpecItem) {
+  if (typeof item === "string") {
+    return item;
+  }
+
+  const preferred = [item.question, item.title, item.description, item.notes];
+
+  for (const value of preferred) {
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+  }
+
+  return JSON.stringify(item);
+}
+
+function normalizeQuestionFingerprint(item: PlanningSpecItem) {
+  return getQuestionText(item)
+    .toLowerCase()
+    .replace(/[?!.,:;'"`()[\]{}~]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function dedupeOpenQuestions(items: PlanningSpecItem[]) {
+  const seen = new Set<string>();
+  const deduped: PlanningSpecItem[] = [];
+
+  for (const item of items) {
+    const fingerprint = normalizeQuestionFingerprint(item);
+
+    if (!fingerprint || seen.has(fingerprint)) {
+      continue;
+    }
+
+    seen.add(fingerprint);
+    deduped.push(item);
+  }
+
+  return deduped;
 }
 
 export function normalizePlanningSpec(value: unknown): PlanningSpecContent {
@@ -57,7 +180,8 @@ export function normalizePlanningSpec(value: unknown): PlanningSpecContent {
   }
 
   for (const key of ARRAY_SPEC_KEYS) {
-    normalized[key] = normalizeStringArray(source[key]);
+    const items = normalizeSpecItemArray(source[key]);
+    normalized[key] = key === "openQuestions" ? dedupeOpenQuestions(items) : items;
   }
 
   if (!isPlanningSpecContent(normalized)) {
