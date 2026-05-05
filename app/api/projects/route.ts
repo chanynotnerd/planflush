@@ -9,6 +9,12 @@ function normalizeString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function normalizePublishCount(value: unknown) {
+  const count = Number(value);
+
+  return Number.isFinite(count) && count > 0 ? count : 0;
+}
+
 export async function GET() {
   try {
     const projects = await prisma.project.findMany({
@@ -31,7 +37,7 @@ export async function GET() {
     return Response.json(
       projects.map(({ _count, ...project }) => ({
         ...project,
-        successfulPublishCount: _count.publishLogs,
+        successfulPublishCount: normalizePublishCount(_count.publishLogs),
       })),
     );
   } catch (error) {
@@ -71,7 +77,10 @@ export async function POST(request: Request) {
       },
     });
 
-    return Response.json(project, { status: 201 });
+    return Response.json(
+      { ...project, successfulPublishCount: 0 },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("Failed to create project.", error);
 
