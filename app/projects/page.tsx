@@ -244,6 +244,7 @@ export default function ProjectsPage() {
                     value={name}
                     onChange={(event) => setName(event.target.value)}
                     placeholder="프로젝트명을 입력해 주세요."
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -257,6 +258,7 @@ export default function ProjectsPage() {
                     value={description}
                     onChange={(event) => setDescription(event.target.value)}
                     placeholder="프로젝트에 대한 간단한 설명을 입력해 주세요."
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -289,8 +291,9 @@ export default function ProjectsPage() {
                 className="pf-btn-outline"
                 type="button"
                 onClick={() => void loadProjects()}
+                disabled={isLoading}
               >
-                새로고침
+                {isLoading ? "새로고침 중..." : "새로고침"}
               </button>
             </div>
 
@@ -303,7 +306,7 @@ export default function ProjectsPage() {
             {!isLoading && !error && projects.length === 0 ? (
               <div className={styles.emptyPanel}>
                 <p className="pf-status">
-                  아직 프로젝트가 없습니다. 첫 프로젝트를 생성해 주십시오.
+                  아직 프로젝트가 없습니다. 새 프로젝트를 만들어 시작하세요.
                 </p>
               </div>
             ) : null}

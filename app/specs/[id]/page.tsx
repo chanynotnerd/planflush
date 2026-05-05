@@ -172,7 +172,7 @@ function localizeApiMessage(message?: string) {
     case "Failed to fetch spec.":
       return "기획서를 불러오지 못했습니다.";
     case "Failed to update spec.":
-      return "기획서를 저장하지 못했습니다.";
+      return "기획서 저장에 실패했습니다.";
     case "NOTION_API_KEY is not configured.":
       return "NOTION_API_KEY가 설정되어 있지 않습니다.";
     case "NOTION_DATABASE_ID is not configured.":
@@ -303,10 +303,12 @@ export default function SpecEditPage({ params }: PageProps) {
     latestNotionPageUrl || spec?.status === "Published",
   );
   const publishButtonLabel = isPublishing
-    ? "배포 중..."
+    ? hasPublishedToNotion
+      ? "재배포 중..."
+      : "배포 중..."
     : hasPublishedToNotion
-      ? "Notion 재배포"
-      : "Notion 배포";
+      ? "재배포"
+      : "Notion으로 배포";
   const publishStatusLabel = publishError
     ? "Notion 배포 실패"
     : publishMessage || latestNotionPageUrl || spec?.status === "Published"
@@ -435,7 +437,7 @@ export default function SpecEditPage({ params }: PageProps) {
         setSaveError(
           "message" in data && data.message
             ? localizeApiMessage(data.message)
-            : "기획서를 저장하지 못했습니다.",
+            : "기획서 저장에 실패했습니다.",
         );
         showToast("기획서 저장에 실패했습니다.", "error");
         return;
@@ -450,7 +452,7 @@ export default function SpecEditPage({ params }: PageProps) {
       showToast("기획서 저장 완료되었습니다.", "success");
       setSavedMessage("기획서가 저장되었습니다.");
     } catch {
-      setSaveError("기획서를 저장하지 못했습니다.");
+      setSaveError("기획서 저장에 실패했습니다.");
       showToast("기획서 저장에 실패했습니다.", "error");
     } finally {
       setIsSaving(false);

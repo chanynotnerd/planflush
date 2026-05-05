@@ -175,6 +175,15 @@ select {
   box-shadow: 0 14px 26px rgba(49, 87, 213, 0.22);
 }
 
+.pf-btn-primary:disabled,
+.pf-btn-outline:disabled,
+.pf-btn-accent:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+  box-shadow: none;
+}
+
 .pf-mini-pill {
   display: inline-flex;
   align-items: center;
