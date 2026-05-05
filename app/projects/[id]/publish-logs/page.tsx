@@ -165,7 +165,7 @@ export default function ProjectPublishLogsPage({
               {project ? project.name : "프로젝트 배포 이력"}
             </h1>
             <p className={`pf-page-copy ${styles.headerCopy}`}>
-              Flush to Notion 실행 결과를 최신순으로 확인합니다.
+              Notion 배포 실행 결과를 최신순으로 확인합니다.
             </p>
           </section>
 
@@ -183,9 +183,9 @@ export default function ProjectPublishLogsPage({
 
           {!isLoading && !error && publishLogs.length === 0 ? (
             <section className={`pf-card pf-card-pad ${styles.stateCard}`}>
-              <h2 className={styles.emptyTitle}>아직 배포 이력이 없습니다.</h2>
+              <h2 className={styles.emptyTitle}>아직 Notion 배포 이력이 없습니다.</h2>
               <p className="pf-status">
-                기획서 편집 화면에서 Flush to Notion을 실행하면 이곳에 결과가 표시됩니다.
+                기획서 편집 화면에서 Notion으로 배포를 실행하면 이곳에 결과가 표시됩니다.
               </p>
             </section>
           ) : null}

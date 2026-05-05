@@ -98,7 +98,7 @@ function localizeApiMessage(message?: string) {
       return "잘못된 프로젝트 ID입니다.";
     case "Failed to fetch project.":
     case "Failed to fetch messages.":
-      return "데이터를 불러오지 못했습니다.";
+      return "프로젝트 정보를 불러오지 못했습니다.";
     case "Invalid JSON body.":
       return "잘못된 요청 형식입니다.";
     case "Invalid message role.":
@@ -375,7 +375,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
             </Link>
           </div>
 
-          {isLoading ? <p className="pf-status">불러오는 중입니다...</p> : null}
+          {isLoading ? <p className="pf-status">프로젝트 정보를 불러오는 중입니다...</p> : null}
           {!isLoading && error ? <p className="pf-status pf-error">{error}</p> : null}
 
           {!isLoading && !error && project ? (
@@ -400,7 +400,9 @@ export default function ProjectDetailPage({ params }: PageProps) {
                       disabled={isGeneratingSpec}
                     >
                       {isGeneratingSpec
-                        ? "기획서 생성 중..."
+                        ? generatedSpec
+                          ? "기획서 재생성 중..."
+                          : "기획서 생성 중..."
                         : generatedSpec
                           ? "기획서 재생성"
                           : "기획서 초안 생성"}
@@ -497,7 +499,13 @@ export default function ProjectDetailPage({ params }: PageProps) {
                     </div>
                   </div>
                 </section>
-              ) : null}
+              ) : (
+                <section className={`pf-card pf-card-pad ${styles.specPreviewCard}`}>
+                  <p className="pf-status">
+                    아직 생성된 기획서가 없습니다. 기획서 초안 생성 버튼으로 초안을 만들어 주세요.
+                  </p>
+                </section>
+              )}
 
               <section className={styles.contentGrid}>
                 <div className={styles.mainColumn}>
@@ -517,7 +525,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                           <div className={styles.emptyState}>
                             <h3 className={styles.emptyTitle}>아직 대화가 없습니다.</h3>
                             <p className="pf-status">
-                              아래 입력창에서 첫 대화를 남기면 이 화면에 프로젝트 타임라인으로 채워집니다.
+                              아직 입력된 메시지가 없습니다. 프로젝트 내용을 입력해 주세요.
                             </p>
                           </div>
                         ) : (
@@ -568,6 +576,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                             value={content}
                             onChange={(event) => setContent(event.target.value)}
                             placeholder="회의 내용, 요구사항, 이슈, 결정사항을 입력하세요."
+                            disabled={isSubmitting}
                           />
                           <button
                             className={styles.sendButton}
@@ -728,7 +737,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                 onClick={() => void handleGenerateSpec()}
                 disabled={isGeneratingSpec}
               >
-                기획서 재생성
+                {isGeneratingSpec ? "기획서 재생성 중..." : "기획서 재생성"}
               </button>
             </div>
           </section>
